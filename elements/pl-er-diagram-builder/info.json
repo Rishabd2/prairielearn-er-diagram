@@ -1,0 +1,7 @@
+{
+  "controller": "pl_er_diagram_builder.py",
+  "dependencies": {
+    "elementScripts": ["pl-er-diagram-builder.js"],
+    "elementStyles": ["pl-er-diagram-builder.css"]
+  }
+}

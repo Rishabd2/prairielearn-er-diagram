@@ -1,0 +1,145 @@
+{{#question}}
+<div class="pl-er-diagram-root">
+    {{^hide_instructions}}
+    <details class="instructions rounded">
+        <summary> ER diagram builder </summary>
+        <ul>
+            <li><strong>Selection panel</strong> (below the canvas): after you click an entity or relationship, edit its name, weak flag, attributes, and (for relationships) participants, cardinality, and participation. Use <strong>Apply</strong> to commit inspector edits to the submitted JSON, or <strong>Discard</strong> to revert the current selection; clicking the canvas elsewhere auto-commits pending edits. <strong>Undo</strong> / <strong>Redo</strong> in the toolbar (or Ctrl+Z / Ctrl+Shift+Z on the canvas) step through recent changes.</li>
+            <li>Edit the <strong>JSON</strong> panel if you prefer or for <code>layout</code>. While that field is focused, the diagram updates when the text is valid JSON (short delay) without reformatting; leaving the field pretty-prints and syncs the submit payload.</li>
+            <li><strong>Double-click</strong> empty canvas to add an entity. <strong>Add relationship</strong> then click two entities for a quick binary link; add more participants from the relationship panel.</li>
+            <li><strong>Delete</strong> removes the selection (focus the canvas first, or use <strong>Delete selection</strong> in the inspector). Deleting an entity removes relationships that use it.</li>
+            <li>Optional <code>layout</code> in JSON stores positions; it is ignored for grading.</li>
+        </ul>
+        <p>Schema: <code>entities[].name</code>, <code>key_attributes[]</code>, <code>attributes[]</code>, optional <code>weak</code> (boolean: weak entity → double rectangle);
+            <code>relationships[].name</code>, <code>participants[]</code>, <code>attributes[]</code>, optional <code>weak</code> (boolean: identifying relationship → double diamond), with <code>cardinality</code> (<code>one</code>|<code>many</code>), <code>participation</code> (<code>total</code>|<code>partial</code>).</p>
+    </details>
+    {{/hide_instructions}}
+
+    <div id="{{{answers_name}}}-er-toolbar" class="btn-toolbar mb-2" role="toolbar">
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-secondary" id="{{{answers_name}}}-er-add-entity" {{^editable}}disabled{{/editable}}>Add entity</button>
+            <button type="button" class="btn btn-secondary" id="{{{answers_name}}}-er-add-rel" {{^editable}}disabled{{/editable}}>Add relationship</button>
+            <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-er-undo" {{^editable}}disabled{{/editable}} title="Undo (Ctrl+Z)">Undo</button>
+            <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-er-redo" {{^editable}}disabled{{/editable}} title="Redo (Ctrl+Shift+Z)">Redo</button>
+            <button type="button" class="btn btn-danger" id="{{{answers_name}}}-er-clear" {{^editable}}disabled{{/editable}}>Clear</button>
+        </div>
+        <span class="ms-2 small text-muted align-self-center" id="{{{answers_name}}}-er-mode-hint"></span>
+    </div>
+
+    <div class="pl-er-split">
+        <div class="pl-er-top-row">
+            <div class="pl-er-canvas-col">
+            <div id="{{{answers_name}}}-er-canvas-wrap" class="pl-er-canvas-wrap">
+                <canvas id="{{{answers_name}}}-er-canvas" class="pl-er-canvas" tabindex="0" width="800" height="{{{height}}}">
+                    <span class="error">Your browser does not support the HTML5 canvas element.</span>
+                </canvas>
+                <div class="btn-group btn-group-sm pl-er-canvas-zoom" role="group" aria-label="Zoom controls">
+                    <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-er-zoom-out" aria-label="Zoom out">-</button>
+                    <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-er-zoom-in" aria-label="Zoom in">+</button>
+                    <span class="btn btn-secondary disabled pl-er-zoom-level" id="{{{answers_name}}}-er-zoom-level" aria-live="polite">100%</span>
+                </div>
+            </div>
+            </div>
+            {{#editable}}
+            <div class="pl-er-inspector-col">
+                <div id="{{{answers_name}}}-er-inspector" class="pl-er-inspector border rounded bg-white px-2 py-2">
+                    <div class="small fw-bold mb-1">Selection</div>
+                    <div id="{{{answers_name}}}-er-inspector-empty" class="text-muted small">Select an entity or relationship on the canvas.</div>
+                    <div id="{{{answers_name}}}-er-inspector-entity" class="d-none"></div>
+                    <div id="{{{answers_name}}}-er-inspector-rel" class="d-none"></div>
+                </div>
+            </div>
+            {{/editable}}
+        </div>
+        <details class="pl-er-json-toggle">
+            <summary class="small fw-bold">JSON view (optional)</summary>
+            <div class="pl-er-json-panel mt-2">
+                <label class="form-label small fw-bold" for="{{{answers_name}}}-er-json-text">JSON (submitted)</label>
+                <textarea id="{{{answers_name}}}-er-json-text" class="form-control font-monospace small pl-er-json-textarea" rows="16" {{^editable}}readonly disabled{{/editable}}></textarea>
+                <div id="{{{answers_name}}}-er-json-error" class="small text-danger mt-1" style="min-height:1.25rem"></div>
+            </div>
+        </details>
+    </div>
+
+    <input id="{{{answers_name}}}-raw-json" name="{{{answers_name}}}-raw" type="hidden" {{^editable}}disabled{{/editable}}>
+
+    <script type="application/json" id="{{{answers_name}}}-er-backup-json">{{{display_json}}}</script>
+    <script type="application/json" id="{{{answers_name}}}-er-format-errors-json">{{{format_errors_json}}}</script>
+    <script>
+    (function () {
+        var id = "{{{answers_name}}}";
+        var script = document.currentScript;
+        var root = script ? script.closest(".pl-er-diagram-root") : null;
+        function parseJsonEl(suffix) {
+            var sel = "#" + (id + suffix).replace(/([^\w-])/g, "\\$1");
+            var el = root ? root.querySelector(sel) : document.getElementById(id + suffix);
+            if (!el) return null;
+            var t = el.textContent.trim();
+            if (!t) return null;
+            try {
+                return JSON.parse(t);
+            } catch (e) {
+                return null;
+            }
+        }
+        var backupJson = parseJsonEl("-er-backup-json");
+        var formatErrorsJson = parseJsonEl("-er-format-errors-json");
+        new ERDiagramBuilder(id, {
+            backupJson: backupJson,
+            formatErrorsJson: formatErrorsJson,
+            editable: {{#editable}}true{{/editable}}{{^editable}}false{{/editable}},
+            height: {{{height}}},
+            rootElement: root
+        });
+    })();
+    </script>
+</div>
+{{/question}}
+
+{{#submission}}
+<div class="pl-er-diagram-root">
+    {{{feedback}}}
+    {{#parse_errors}}
+        <p><b>Error:</b> {{{message}}}</p>
+    {{/parse_errors}}
+    {{#show_submission_diagram}}
+    <details class="mb-3" open>
+        <summary class="fw-bold small">Submitted diagram</summary>
+        <div id="{{{answers_name}}}-submission-er-canvas-wrap" class="pl-er-canvas-wrap mt-2">
+            <canvas id="{{{answers_name}}}-submission-er-canvas" class="pl-er-canvas" tabindex="0" width="800" height="{{{height}}}"></canvas>
+            <div class="btn-group btn-group-sm pl-er-canvas-zoom" role="group" aria-label="Zoom controls">
+                <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-submission-er-zoom-out" aria-label="Zoom out">-</button>
+                <button type="button" class="btn btn-outline-secondary" id="{{{answers_name}}}-submission-er-zoom-in" aria-label="Zoom in">+</button>
+                <span class="btn btn-secondary disabled pl-er-zoom-level" id="{{{answers_name}}}-submission-er-zoom-level" aria-live="polite">100%</span>
+            </div>
+        </div>
+    </details>
+    <script type="application/json" id="{{{answers_name}}}-submission-er-backup-json">{{{submission_json_embed}}}</script>
+    <script>
+    (function () {
+        var id = "{{{answers_name}}}";
+        var script = document.currentScript;
+        var root = script ? script.closest(".pl-er-diagram-root") : null;
+        var sel = "#" + (id + "-submission-er-backup-json").replace(/([^\w-])/g, "\\$1");
+        var el = root ? root.querySelector(sel) : document.getElementById(id + "-submission-er-backup-json");
+        var backup = null;
+        if (el && el.textContent.trim()) {
+            try { backup = JSON.parse(el.textContent); } catch (e) { backup = null; }
+        }
+        new ERDiagramBuilder(id, {
+            backupJson: backup,
+            formatErrorsJson: null,
+            editable: false,
+            height: {{{height}}},
+            idPrefix: id + "-submission",
+            rootElement: root
+        });
+    })();
+    </script>
+    {{/show_submission_diagram}}
+    <details class="mb-0">
+        <summary class="fw-bold small">Submitted JSON</summary>
+        <pre class="pl-er-submission-json border rounded p-2 bg-light small font-monospace mt-2 mb-0"><code>{{display_json}}</code></pre>
+    </details>
+</div>
+{{/submission}}

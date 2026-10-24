@@ -1,0 +1,31 @@
+{
+  "uuid": "4bdf656e-26ec-445f-9804-ee5fdbcc95d4",
+  "name": "ER Diagram Builder",
+  "title": "pl-er-diagram-builder demo course",
+  "assessmentSets": [
+    {
+      "abbreviation": "HW",
+      "name": "Homework",
+      "heading": "Homework",
+      "color": "blue1"
+    }
+  ],
+  "topics": [
+    {
+      "name": "ER modeling",
+      "color": "green1",
+      "description": "Entity-relationship diagrams"
+    }
+  ],
+  "tags": [
+    {
+      "name": "er",
+      "color": "green1"
+    },
+    {
+      "name": "demo",
+      "color": "gray1"
+    }
+  ],
+  "timezone": "America/Chicago"
+}

@@ -1,0 +1,419 @@
+"""Semantic ER schema: validate, normalize, and grade.
+
+PrairieLearn's element controller and the standalone tests both import this
+module. Layout coordinates are stored for the canvas and ignored here.
+"""
+
+from __future__ import annotations
+
+import html
+
+CARDINALITY_ALLOWED = frozenset({"one", "many"})
+PARTICIPATION_ALLOWED = frozenset({"total", "partial"})
+
+# Rubric weights match the original CS 498 element (entity 1.5 + relationship 2.0).
+ENTITY_NAME_WEIGHT = 0.6
+ENTITY_ATTR_WEIGHT = 0.3
+ENTITY_PK_WEIGHT = 0.6
+ENTITY_WEAK_WEIGHT = 0.0
+ENTITY_EXTRA_PENALTY = 0.25
+ENTITY_TOTAL_MAX = 1.5
+
+REL_NAME_WEIGHT = 1.0
+REL_CARD_WEIGHT = 1.0
+REL_EXTRA_PENALTY = 0.25
+REL_TOTAL_MAX = 2.0
+
+TOTAL_MAX = 3.5
+SCALED_MAX = 10.0
+
+
+def strip_layout(doc: dict) -> dict:
+    return {k: v for k, v in doc.items() if k != "layout"}
+
+
+def normalize_semantic(doc: dict) -> dict:
+    """Canonical form for grading: sorted names and attribute lists."""
+    entities = []
+    for e in doc.get("entities", []):
+        entities.append(
+            {
+                "name": str(e["name"]),
+                "key_attributes": sorted(str(a) for a in e.get("key_attributes", [])),
+                "attributes": sorted(str(a) for a in e.get("attributes", [])),
+                "weak": bool(e.get("weak", False)),
+            }
+        )
+    entities.sort(key=lambda x: x["name"])
+
+    relationships = []
+    for r in doc.get("relationships", []):
+        participants = []
+        for p in r.get("participants", []):
+            participants.append(
+                {
+                    "entity": str(p["entity"]),
+                    "cardinality": str(p["cardinality"]),
+                    "participation": str(p["participation"]),
+                }
+            )
+        participants.sort(key=lambda x: x["entity"])
+        relationships.append(
+            {
+                "name": str(r["name"]),
+                "participants": participants,
+                "attributes": sorted(str(a) for a in r.get("attributes", [])),
+                "weak": bool(r.get("weak", False)),
+            }
+        )
+    relationships.sort(key=lambda x: x["name"])
+
+    return {"entities": entities, "relationships": relationships}
+
+
+def validate(doc: dict) -> str | None:
+    """Return an HTML error message, or None if the document is valid."""
+    if not isinstance(doc, dict):
+        return "Submission must be a JSON object."
+    if "entities" not in doc or not isinstance(doc["entities"], list):
+        return "Missing or invalid <code>entities</code> array."
+    if "relationships" not in doc or not isinstance(doc["relationships"], list):
+        return "Missing or invalid <code>relationships</code> array."
+
+    names = []
+    for i, e in enumerate(doc["entities"]):
+        if not isinstance(e, dict):
+            return f"Entity at index {i} is not an object."
+        if "name" not in e or not isinstance(e["name"], str) or not e["name"].strip():
+            return f"Entity at index {i} needs a non-empty <code>name</code>."
+        en = html.escape(e["name"])
+        for key in ("key_attributes", "attributes"):
+            if key not in e or not isinstance(e[key], list):
+                return f"Entity <code>{en}</code> needs a <code>{key}</code> array."
+            for a in e[key]:
+                if not isinstance(a, str):
+                    return f"Entity <code>{en}</code> has non-string attribute."
+                if not a.strip():
+                    return (
+                        f"Entity <code>{en}</code> has an empty "
+                        f"<code>{key}</code> entry (remove blank attributes)."
+                    )
+        if "weak" in e and not isinstance(e["weak"], bool):
+            return f"Entity <code>{en}</code> <code>weak</code> must be a boolean."
+        names.append(e["name"])
+
+    if len(names) != len(set(names)):
+        return "Entity names must be unique."
+
+    entity_set = set(names)
+
+    for i, r in enumerate(doc["relationships"]):
+        if not isinstance(r, dict):
+            return f"Relationship at index {i} is not an object."
+        if "name" not in r or not isinstance(r["name"], str) or not r["name"].strip():
+            return f"Relationship at index {i} needs a non-empty <code>name</code>."
+        rn = html.escape(r["name"])
+        parts = r.get("participants")
+        if not isinstance(parts, list) or len(parts) < 2:
+            return (
+                f"Relationship <code>{rn}</code> must have at least "
+                f"two participants."
+            )
+        if "attributes" not in r or not isinstance(r["attributes"], list):
+            return f"Relationship <code>{rn}</code> needs an <code>attributes</code> array."
+        for a in r["attributes"]:
+            if not isinstance(a, str):
+                return f"Relationship <code>{rn}</code> has non-string attribute."
+            if not a.strip():
+                return (
+                    f"Relationship <code>{rn}</code> has an empty attribute "
+                    f"(remove blank attributes)."
+                )
+        if "weak" in r and not isinstance(r["weak"], bool):
+            return f"Relationship <code>{rn}</code> <code>weak</code> must be a boolean."
+        seen_ent = set()
+        for p in parts:
+            if not isinstance(p, dict):
+                return f"Relationship <code>{rn}</code> has invalid participant."
+            ent = p.get("entity")
+            ent_esc = html.escape(str(ent)) if ent is not None else ""
+            if not isinstance(ent, str) or ent not in entity_set:
+                return (
+                    f"Relationship <code>{rn}</code> references unknown "
+                    f"entity <code>{ent_esc}</code>."
+                )
+            if ent in seen_ent:
+                ent_rep = html.escape(ent)
+                return (
+                    f"Relationship <code>{rn}</code> lists entity "
+                    f"<code>{ent_rep}</code> more than once."
+                )
+            seen_ent.add(ent)
+            c = p.get("cardinality")
+            part = p.get("participation")
+            c_esc = html.escape(str(c))
+            part_esc = html.escape(str(part))
+            if c not in CARDINALITY_ALLOWED:
+                return (
+                    f"Invalid cardinality <code>{c_esc}</code> for "
+                    f"<code>{rn}</code> / <code>{html.escape(ent)}</code>."
+                )
+            if part not in PARTICIPATION_ALLOWED:
+                return (
+                    f"Invalid participation <code>{part_esc}</code> for "
+                    f"<code>{rn}</code> / <code>{html.escape(ent)}</code>."
+                )
+
+    rel_names = [r["name"] for r in doc["relationships"]]
+    if len(rel_names) != len(set(rel_names)):
+        return "Relationship names must be unique."
+
+    if "layout" in doc and doc["layout"] is not None and not isinstance(doc["layout"], dict):
+        return "<code>layout</code> must be an object when present."
+
+    return None
+
+
+def schema_mismatch_feedback(sub: dict, exp: dict, max_items: int = 12) -> str:
+    """HTML list of differences between two already-normalized schemas."""
+    issues: list[str] = []
+
+    def push(msg: str) -> None:
+        if len(issues) < max_items:
+            issues.append(f"<li>{msg}</li>")
+
+    sub_ent = {e["name"]: e for e in sub["entities"]}
+    exp_ent = {e["name"]: e for e in exp["entities"]}
+
+    for name in sorted(set(exp_ent) - set(sub_ent)):
+        push(f"Missing entity <code>{html.escape(name)}</code>.")
+    for name in sorted(set(sub_ent) - set(exp_ent)):
+        push(f"Unexpected entity <code>{html.escape(name)}</code>.")
+
+    for name in sorted(set(sub_ent) & set(exp_ent)):
+        se, ee = sub_ent[name], exp_ent[name]
+        ne = html.escape(name)
+        if se["weak"] != ee["weak"]:
+            push(
+                f"Entity <code>{ne}</code>: weak flag is "
+                f"<code>{str(se['weak']).lower()}</code>, "
+                f"expected <code>{str(ee['weak']).lower()}</code>."
+            )
+        if se["key_attributes"] != ee["key_attributes"]:
+            push(
+                f"Entity <code>{ne}</code>: key attributes differ "
+                f"(expected {html.escape(repr(list(ee['key_attributes'])))})."
+            )
+        if se["attributes"] != ee["attributes"]:
+            push(
+                f"Entity <code>{ne}</code>: attributes differ "
+                f"(expected {html.escape(repr(list(ee['attributes'])))})."
+            )
+
+    sub_rel = {r["name"]: r for r in sub["relationships"]}
+    exp_rel = {r["name"]: r for r in exp["relationships"]}
+
+    for name in sorted(set(exp_rel) - set(sub_rel)):
+        push(f"Missing relationship <code>{html.escape(name)}</code>.")
+    for name in sorted(set(sub_rel) - set(exp_rel)):
+        push(f"Unexpected relationship <code>{html.escape(name)}</code>.")
+
+    for name in sorted(set(sub_rel) & set(exp_rel)):
+        sr, er = sub_rel[name], exp_rel[name]
+        nr = html.escape(name)
+        if sr["weak"] != er["weak"]:
+            push(
+                f"Relationship <code>{nr}</code>: identifying (weak) flag is "
+                f"<code>{str(sr['weak']).lower()}</code>, "
+                f"expected <code>{str(er['weak']).lower()}</code>."
+            )
+        if sr["attributes"] != er["attributes"]:
+            push(
+                f"Relationship <code>{nr}</code>: attributes differ "
+                f"(expected {html.escape(repr(list(er['attributes'])))})."
+            )
+        sub_map = {
+            p["entity"]: (p["cardinality"], p["participation"])
+            for p in sr["participants"]
+        }
+        exp_map = {
+            p["entity"]: (p["cardinality"], p["participation"])
+            for p in er["participants"]
+        }
+        entities_sub = set(sub_map)
+        entities_exp = set(exp_map)
+        if sr["participants"] != er["participants"]:
+            for ent in sorted(entities_exp - entities_sub):
+                push(
+                    f"Relationship <code>{nr}</code>: missing participant "
+                    f"<code>{html.escape(ent)}</code>."
+                )
+            for ent in sorted(entities_sub - entities_exp):
+                push(
+                    f"Relationship <code>{nr}</code>: unexpected participant "
+                    f"<code>{html.escape(ent)}</code>."
+                )
+            for ent in sorted(entities_sub & entities_exp):
+                sc, sp = sub_map[ent]
+                ec, ep = exp_map[ent]
+                if (sc, sp) != (ec, ep):
+                    push(
+                        f"Relationship <code>{nr}</code>, entity "
+                        f"<code>{html.escape(ent)}</code>: cardinality/participation are "
+                        f"<code>{html.escape(sc)}</code>/<code>{html.escape(sp)}</code>, "
+                        f"expected <code>{html.escape(ec)}</code>/<code>{html.escape(ep)}</code>."
+                    )
+
+    body = "".join(issues)
+    if not body.strip():
+        return "<p>Your ER diagram does not match the expected schema.</p>"
+    return (
+        "<p>Your ER diagram does not match the expected schema.</p>"
+        "<ul>" + body + "</ul>"
+    )
+
+
+def safe_ratio(numer: int, denom: int) -> float:
+    if denom <= 0:
+        return 1.0
+    return numer / denom
+
+
+def compute_rubric_marks(sub: dict, exp: dict) -> dict:
+    """Partial credit for a normalized submission against a normalized answer."""
+    sub_ent = {e["name"]: e for e in sub["entities"]}
+    exp_ent = {e["name"]: e for e in exp["entities"]}
+    sub_ent_names = set(sub_ent)
+    exp_ent_names = set(exp_ent)
+    matched_ent_names = sorted(sub_ent_names & exp_ent_names)
+    extra_ent_count = len(sub_ent_names - exp_ent_names)
+
+    ent_name_marks = ENTITY_NAME_WEIGHT * safe_ratio(
+        len(matched_ent_names), len(exp_ent_names)
+    )
+
+    attr_ratio_sum = 0.0
+    pk_ratio_sum = 0.0
+    if exp_ent_names:
+        for en in exp_ent_names:
+            se = sub_ent.get(en)
+            ee = exp_ent[en]
+            sub_attrs = set(se["attributes"]) if se else set()
+            exp_attrs = set(ee["attributes"])
+            attr_ratio_sum += safe_ratio(len(sub_attrs & exp_attrs), len(exp_attrs))
+
+            sub_keys = set(se["key_attributes"]) if se else set()
+            exp_keys = set(ee["key_attributes"])
+            pk_ratio_sum += safe_ratio(len(sub_keys & exp_keys), len(exp_keys))
+
+    ent_attr_marks = ENTITY_ATTR_WEIGHT * safe_ratio(attr_ratio_sum, len(exp_ent_names))
+    ent_pk_marks = ENTITY_PK_WEIGHT * safe_ratio(pk_ratio_sum, len(exp_ent_names))
+    ent_weak_marks = 0.0
+    ent_extra_penalty = -ENTITY_EXTRA_PENALTY * extra_ent_count
+
+    ent_total_marks = (
+        ent_name_marks
+        + ent_attr_marks
+        + ent_pk_marks
+        + ent_weak_marks
+        + ent_extra_penalty
+    )
+
+    sub_rel = {r["name"]: r for r in sub["relationships"]}
+    exp_rel = {r["name"]: r for r in exp["relationships"]}
+    sub_rel_names = set(sub_rel)
+    exp_rel_names = set(exp_rel)
+    matched_rel_names = sorted(sub_rel_names & exp_rel_names)
+    extra_rel_count = len(sub_rel_names - exp_rel_names)
+
+    rel_name_marks = REL_NAME_WEIGHT * safe_ratio(
+        len(matched_rel_names), len(exp_rel_names)
+    )
+
+    rel_card_ratio_sum = 0.0
+    if exp_rel_names:
+        for rn in exp_rel_names:
+            sr = sub_rel.get(rn)
+            er = exp_rel[rn]
+            sub_map = {
+                p["entity"]: (p["cardinality"], p["participation"])
+                for p in (sr["participants"] if sr else [])
+            }
+            exp_map = {
+                p["entity"]: (p["cardinality"], p["participation"])
+                for p in er["participants"]
+            }
+            expected_participants = len(exp_map)
+            matched_parts = sum(
+                1 for ent, exp_cp in exp_map.items() if sub_map.get(ent) == exp_cp
+            )
+            rel_card_ratio_sum += safe_ratio(matched_parts, expected_participants)
+
+    rel_card_marks = REL_CARD_WEIGHT * safe_ratio(rel_card_ratio_sum, len(exp_rel_names))
+    rel_extra_penalty = -REL_EXTRA_PENALTY * extra_rel_count
+    rel_total_marks = rel_name_marks + rel_card_marks + rel_extra_penalty
+
+    total_marks = max(0.0, ent_total_marks + rel_total_marks)
+    score_fraction = max(0.0, min(1.0, safe_ratio(total_marks, TOTAL_MAX)))
+    scaled_marks = score_fraction * SCALED_MAX
+
+    return {
+        "entity_name_marks": ent_name_marks,
+        "entity_attr_marks": ent_attr_marks,
+        "entity_pk_marks": ent_pk_marks,
+        "entity_weak_marks": ent_weak_marks,
+        "extra_entities_penalty": ent_extra_penalty,
+        "total_entity_marks": ent_total_marks,
+        "relationship_marks": rel_name_marks,
+        "relationship_card_marks": rel_card_marks,
+        "extra_relationships_penalty": rel_extra_penalty,
+        "total_relationship_marks": rel_total_marks,
+        "total_marks": total_marks,
+        "total_scaled_marks": scaled_marks,
+        "score_fraction": score_fraction,
+        "maxima": {
+            "entity_name": ENTITY_NAME_WEIGHT,
+            "entity_attr": ENTITY_ATTR_WEIGHT,
+            "entity_pk": ENTITY_PK_WEIGHT,
+            "entity_weak": ENTITY_WEAK_WEIGHT,
+            "entity_total": ENTITY_TOTAL_MAX,
+            "relationship_name": REL_NAME_WEIGHT,
+            "relationship_card": REL_CARD_WEIGHT,
+            "relationship_total": REL_TOTAL_MAX,
+            "total": TOTAL_MAX,
+            "scaled_total": SCALED_MAX,
+        },
+    }
+
+
+def format_marks_feedback(marks: dict, include_mismatch_html: str | None = None) -> str:
+    def fmt(v: float) -> str:
+        return f"{v:.2f}".rstrip("0").rstrip(".")
+
+    m = marks
+    mx = m["maxima"]
+    lines = [
+        f"Entity name marks: {fmt(m['entity_name_marks'])}/{fmt(mx['entity_name'])}",
+        f"Entity attribute marks: {fmt(m['entity_attr_marks'])}/{fmt(mx['entity_attr'])}",
+        f"Entity primary key marks: {fmt(m['entity_pk_marks'])}/{fmt(mx['entity_pk'])}",
+        f"Weak entity key marks: {fmt(m['entity_weak_marks'])}/{fmt(mx['entity_weak'])}",
+        f"Extra entities: {fmt(m['extra_entities_penalty'])}",
+        f"Total entity marks: {fmt(m['total_entity_marks'])}/{fmt(mx['entity_total'])}",
+        f"Relationship marks: {fmt(m['relationship_marks'])}/{fmt(mx['relationship_name'])}",
+        (
+            "Relationship cardinalities marks: "
+            f"{fmt(m['relationship_card_marks'])}/{fmt(mx['relationship_card'])}"
+        ),
+        f"Extra relationships: {fmt(m['extra_relationships_penalty'])}",
+        (
+            "Total relationship marks: "
+            f"{fmt(m['total_relationship_marks'])}/{fmt(mx['relationship_total'])}"
+        ),
+        f"Total marks: {fmt(m['total_marks'])}/{fmt(mx['total'])}",
+        f"Total scaled marks: {fmt(m['total_scaled_marks'])}/{fmt(mx['scaled_total'])}",
+    ]
+
+    feedback = "<p><strong>Rubric breakdown</strong></p><pre>" + "\n".join(lines) + "</pre>"
+    if include_mismatch_html:
+        feedback += include_mismatch_html
+    return feedback

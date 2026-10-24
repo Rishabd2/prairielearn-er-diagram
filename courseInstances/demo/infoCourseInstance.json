@@ -1,0 +1,10 @@
+{
+  "uuid": "a70a764b-11db-45f0-a105-309828b80a08",
+  "longName": "Element demo",
+  "allowAccess": [
+    {
+      "startDate": "2020-01-01T00:00:01",
+      "endDate": "2400-01-01T00:00:01"
+    }
+  ]
+}

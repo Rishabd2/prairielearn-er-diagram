@@ -1,0 +1,127 @@
+.pl-er-diagram-root {
+  margin-bottom: 1rem;
+}
+
+.pl-er-split {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pl-er-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.pl-er-canvas-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pl-er-inspector-col {
+  min-width: 0;
+}
+
+.pl-er-canvas-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+  background: #fafafa;
+  overflow: auto;
+  max-height: min(90vh, 720px);
+}
+
+.pl-er-canvas-zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+}
+
+.pl-er-inspector {
+  max-height: 600px;
+  overflow-y: auto;
+  border-color: rgba(0, 0, 0, 0.125) !important;
+}
+
+.pl-er-inspector .er-insp-row {
+  gap: 0.35rem;
+}
+
+.pl-er-canvas {
+  display: block;
+  width: 100%;
+  vertical-align: middle;
+  cursor: default;
+}
+
+.pl-er-json-panel {
+  width: 100%;
+}
+
+.pl-er-json-toggle {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 0.5rem;
+}
+
+.pl-er-json-toggle summary {
+  cursor: pointer;
+  outline: none;
+}
+
+.pl-er-json-textarea {
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.pl-er-submission-json {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.pl-er-zoom-level {
+  min-width: 4.25rem;
+  text-align: center;
+}
+
+.pl-er-zoom-level.disabled {
+  opacity: 1;
+}
+
+@media (max-width: 900px) {
+  .pl-er-top-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+details.instructions {
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  padding: 0.5em 0.5em 0;
+  margin-bottom: 15px;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.instructions summary {
+  font-weight: bold;
+  margin: -0.5em -0.5em 0;
+  padding: 0.5em;
+  outline: none;
+}
+
+details.instructions[open] {
+  padding: 0.5em;
+}
+
+details.instructions[open] summary {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  margin-bottom: 0.5em;
+}

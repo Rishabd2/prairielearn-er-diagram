@@ -1,0 +1,23 @@
+{
+  "uuid": "5c8d0240-3224-423a-8225-815d9d1a4de2",
+  "type": "Homework",
+  "title": "ER diagram builder",
+  "set": "Homework",
+  "number": "1",
+  "allowAccess": [
+    {
+      "mode": "Public",
+      "credit": 100,
+      "startDate": "2020-01-01T00:00:01",
+      "endDate": "2400-01-01T00:00:01"
+    }
+  ],
+  "zones": [
+    {
+      "title": "Sample question",
+      "questions": [
+        { "id": "element/erDiagram", "points": 10 }
+      ]
+    }
+  ]
+}
