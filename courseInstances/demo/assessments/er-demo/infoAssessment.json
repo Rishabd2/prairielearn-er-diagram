@@ -2,7 +2,7 @@
   "uuid": "5c8d0240-3224-423a-8225-815d9d1a4de2",
   "type": "Homework",
   "title": "ER diagram builder",
-  "set": "Homework",
+  "set": "Practice",
   "number": "1",
   "allowAccess": [
     {
@@ -14,9 +14,16 @@
   ],
   "zones": [
     {
-      "title": "Sample question",
+      "title": "Sample questions",
       "questions": [
-        { "id": "element/erDiagram", "points": 10 }
+        {
+          "id": "element/erDiagram",
+          "points": 10
+        },
+        {
+          "id": "element/erDiagramStarter",
+          "points": 10
+        }
       ]
     }
   ]

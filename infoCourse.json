@@ -4,9 +4,9 @@
   "title": "pl-er-diagram-builder demo course",
   "assessmentSets": [
     {
-      "abbreviation": "HW",
-      "name": "Homework",
-      "heading": "Homework",
+      "abbreviation": "P",
+      "name": "Practice",
+      "heading": "Practice",
       "color": "blue1"
     }
   ],

@@ -49,13 +49,38 @@ def prepare(element_html: str, data: pl.QuestionData) -> None:
     pl.check_attribs(
         element,
         required_attribs=["answers-name"],
-        optional_attribs=["weight", "height", "disable-grading", "hide-instructions"],
+        optional_attribs=[
+            "weight",
+            "height",
+            "disable-grading",
+            "hide-instructions",
+            "starter-params-name",
+        ],
     )
     name = pl.get_string_attrib(element, "answers-name")
     data["params"][name] = {
         "disable_grading": pl.get_boolean_attrib(element, "disable-grading", False),
         "hide_instructions": pl.get_boolean_attrib(element, "hide-instructions", False),
     }
+
+    starter_key = pl.get_string_attrib(element, "starter-params-name", None)
+    if starter_key is not None:
+        if starter_key == name:
+            raise ValueError("starter-params-name must differ from answers-name.")
+        if starter_key not in data["params"]:
+            raise ValueError(
+                f'starter-params-name="{starter_key}" is not set in data["params"]. '
+                "Set it in server.py generate()."
+            )
+        starter = data["params"][starter_key]
+        if isinstance(starter, str):
+            try:
+                starter = json.loads(starter)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Starter diagram is not valid JSON: {exc}") from exc
+        err = validate(starter)
+        if err is not None:
+            raise ValueError(f"Starter diagram is invalid: {err}")
 
 
 def render(element_html: str, data: pl.QuestionData) -> str:
@@ -72,6 +97,10 @@ def render(element_html: str, data: pl.QuestionData) -> str:
         submitted_doc = data.get("submitted_answers", {}).get(name)
         if submitted_doc is not None:
             display_json = submitted_doc
+    if display_json is None and data["panel"] == "question":
+        starter_key = pl.get_string_attrib(element, "starter-params-name", None)
+        if starter_key is not None:
+            display_json = data["params"].get(starter_key)
     feedback = None
     if name in data["partial_scores"]:
         feedback = data["partial_scores"][name].get("feedback", None)

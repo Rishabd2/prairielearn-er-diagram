@@ -23,7 +23,7 @@ An example question that uses this element lives at [questions/element/erDiagram
 
 ```html
 <pl-question-panel>
-  <p>Build an ER diagram with entities <strong>Student</strong> and <strong>Course</strong>, and a many–many relationship <strong>Enrolls</strong> with attributes <code>semester</code> and <code>grade</code>. Use <code>student_id</code> and <code>course_id</code> as keys; include attributes <code>name</code> and <code>email</code> on Student and <code>title</code> on Course. Student participation in Enrolls is total; Course participation is partial.</p>
+  <p>Build an ER diagram with entities <strong>Student</strong> and <strong>Course</strong>, and a many-to-many relationship <strong>Enrolls</strong> with attributes <code>semester</code> and <code>grade</code>. Use <code>student_id</code> and <code>course_id</code> as keys; include attributes <code>name</code> and <code>email</code> on Student and <code>title</code> on Course. Student participation in Enrolls is total; Course participation is partial.</p>
 </pl-question-panel>
 
 <pl-er-diagram-builder answers-name="er" height="520"></pl-er-diagram-builder>
@@ -131,18 +131,36 @@ Create a relationship with **at least two** participants (binary by default). To
 | `height` | integer | `600` | Canvas height in pixels. |
 | `disable-grading` | boolean | `false` | If `true`, the element stores submissions but does not grade them. |
 | `hide-instructions` | boolean | `false` | If `true`, the collapsible help block at the top of the element is hidden. |
+| `starter-params-name` | string | none | Key in `data["params"]` holding a starter diagram (dict or JSON string, same shape as a submission, `layout` optional). Shown until the student saves their first answer. Validated in `prepare`. |
 
 ## How to use
 
 1. **Entities**: Use **Add entity** or double-click empty canvas. Select an entity to rename it, toggle **Weak entity**, and edit key or descriptive attributes in the inspector.
-2. **Relationships**: Click **Add relationship**, then click two entities for a binary link. Select the relationship to rename it, toggle **Weak / identifying**, edit relationship attributes, and set each participant’s **cardinality** and **participation** with the dropdowns.
+2. **Relationships**: Click **Add relationship**, then click two entities for a binary link. Select the relationship to rename it, toggle **Weak / identifying**, edit relationship attributes, and set each participant's **cardinality** and **participation** with the dropdowns.
 3. **Ternary+**: With a relationship selected, use **Add participant** (and remove with **×**) so each participating entity appears exactly once.
 4. **Delete**: Select an item on the canvas (click the canvas first so it has keyboard focus), press **Delete** or **Backspace**, or use **Delete selection** in the inspector.
 5. **JSON**: Expand **JSON view** to edit the submission directly; valid JSON updates the diagram after a short delay; leaving the field reformats and syncs the hidden submitted payload.
 6. **Zoom**: Use **+** / **−** on the canvas; scroll the canvas area if the diagram extends past the visible region when zoomed.
-7. **Inspector Apply / Discard**: After editing fields in the inspector, use **Apply** to sync the submission JSON or **Discard** to revert this selection’s fields to when you opened it; selecting another entity on the canvas saves pending edits automatically.
+7. **Inspector Apply / Discard**: After editing fields in the inspector, use **Apply** to sync the submission JSON or **Discard** to revert this selection's fields to when you opened it; selecting another entity on the canvas saves pending edits automatically.
 8. **Undo / Redo**: Use the toolbar buttons or Ctrl+Z / Ctrl+Shift+Z (canvas focused) to step through recent changes.
 
 ### Starter / pre-filled diagrams
 
-Preloading an initial diagram for students (e.g. partial ER as a starting point) is **not supported** in this version. Students always start from an empty diagram unless they paste JSON. If you need a starter diagram, describe the intended state in the question text until this feature is implemented.
+Set a starter in `server.py` and name it with `starter-params-name`:
+
+```python
+def generate(data):
+    data["params"]["er_starter"] = {
+        "entities": [
+            {"name": "Employee", "key_attributes": [], "attributes": []},
+            {"name": "Pay", "key_attributes": ["pay_no"], "attributes": ["hours"]},
+        ],
+        "relationships": [],
+    }
+```
+
+```html
+<pl-er-diagram-builder answers-name="er" starter-params-name="er_starter"></pl-er-diagram-builder>
+```
+
+The starter appears on the canvas until the student saves; after that the saved answer is shown. The starter is not graded on its own: a student who submits it unchanged is scored against `correct_answers` like any other submission. Full example: `questions/element/erDiagramStarter/`.

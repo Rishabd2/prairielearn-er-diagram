@@ -1,3 +1,5 @@
-# Local tests use the stdlib only (python3 -m unittest).
-# The PrairieLearn runtime supplies prairielearn, chevron, and lxml.
+# Tests and figure scripts. The PrairieLearn runtime supplies chevron and lxml itself.
+pytest>=7
+chevron>=0.14
+lxml>=4.9
 matplotlib>=3.7
