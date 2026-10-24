@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Rishab Doshi
 """Re-export the element grader for local tests and scripts."""
 
 from __future__ import annotations

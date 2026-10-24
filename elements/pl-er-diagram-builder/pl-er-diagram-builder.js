@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2026 Rishab Doshi */
 /* eslint-disable */
 // ER diagram editor: semantic JSON + layout, canvas editing, textarea sync.
 const ERDiagramBuilder = (function () {

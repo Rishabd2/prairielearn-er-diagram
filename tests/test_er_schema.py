@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Rishab Doshi
 """Unit tests for the shared ER schema module. No PrairieLearn runtime required."""
 
 from __future__ import annotations

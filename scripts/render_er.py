@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Rishab Doshi
 """Draw Chen-style ER diagrams from examples/*.json into docs/figures/."""
 
 from __future__ import annotations

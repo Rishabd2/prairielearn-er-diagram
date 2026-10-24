@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Rishab Doshi
 def generate(data):
     data["correct_answers"]["er"] = {
         "entities": [

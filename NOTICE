@@ -1,7 +1,25 @@
-This repository is independent course work. It is not published by the
-PrairieLearn organization.
+pl-er-diagram-builder
+Copyright (C) 2026 Rishab Doshi
 
-PrairieLearn: https://github.com/PrairieLearn/PrairieLearn (AGPL-3.0)
-CS 498 Designing Software for Education (UIUC): development course used to
-build and review the element (pl-uiuc-csed-dev).
-Books / Authors / Categories schema: 498erd-example question erd_e3_books.
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version. See LICENSE for the full text.
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+This element was written as open-source work for PrairieLearn and uses its
+Python element API at runtime (`import prairielearn`). PrairieLearn is not
+vendored here.
+  PrairieLearn: https://github.com/PrairieLearn/PrairieLearn
+  License: AGPL-3.0 for the Community Edition (see its LICENSE file).
+
+Third-party material
+--------------------
+Books / Authors / Categories schema (examples/books-authors.json and the
+derived figures in docs/figures/books-authors.*): translated from the UML
+answer of the PrairieLearn question `erd_e3_books` in the UIUC ERD example
+course. Only the entity, attribute, and cardinality facts are reused.
+
+No third-party source code is vendored in this repository. Runtime
+dependencies supplied by the PrairieLearn container (chevron, lxml) and
+the figure dependency (matplotlib) keep their own licenses.

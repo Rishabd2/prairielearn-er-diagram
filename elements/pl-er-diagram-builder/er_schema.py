@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Rishab Doshi
 """Semantic ER schema: validate, normalize, and grade.
 
 PrairieLearn's element controller and the standalone tests both import this

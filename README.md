@@ -86,6 +86,4 @@ courseInstances/demo/             local PrairieLearn assessment
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
-
-PrairieLearn is a separate project (AGPL-3.0) at [PrairieLearn/PrairieLearn](https://github.com/PrairieLearn/PrairieLearn). The element talks to its Python API (`import prairielearn`). The Books schema is from the CS 498 / IS 206 ERD example course (`498erd-example`), not from PrairieLearn itself.
+AGPL-3.0-or-later, matching PrairieLearn (AGPL-3.0). Full text in [LICENSE](LICENSE); attributions in [NOTICE](NOTICE).
