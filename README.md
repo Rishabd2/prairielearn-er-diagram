@@ -18,6 +18,23 @@ JSON for that diagram: [`examples/student-course.json`](examples/student-course.
 
 A second diagram, Books / Authors / Categories, comes from a `pl-uml-element` question in `498erd-example`. It is documentation only (see `examples/books-authors.json`).
 
+## Setup
+
+Python 3.10+ is enough for tests. The PrairieLearn container already has `prairielearn`, `chevron`, and `lxml`.
+
+```bash
+python3 -m unittest tests/test_er_schema.py
+```
+
+To redraw the figures:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 scripts/render_er.py
+```
+
+To run the sample question, install [PrairieLearn](https://prairielearn.readthedocs.io/en/latest/installing/) (Docker is the usual path), point it at this repo root, and Load from disk.
+
 ## Use it in a PrairieLearn course
 
 Copy `elements/pl-er-diagram-builder/` into your course `elements/` directory. Copy `questions/element/erDiagram/` if you want the sample. Sync the course.
