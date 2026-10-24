@@ -1,0 +1,54 @@
+{
+  "_source": "498erd-example/questions/erd_e3_books/question.html (pl-uml-element answer). Relationship names are the verbs from that question text; the UML associations were unlabeled.",
+  "entities": [
+    {
+      "name": "Books",
+      "key_attributes": ["isbn"],
+      "attributes": ["title", "pubYear", "genre"]
+    },
+    {
+      "name": "Authors",
+      "key_attributes": ["authorId"],
+      "attributes": ["name"]
+    },
+    {
+      "name": "Categories",
+      "key_attributes": ["name"],
+      "attributes": ["displayOrder"]
+    }
+  ],
+  "relationships": [
+    {
+      "name": "written_by",
+      "participants": [
+        {
+          "entity": "Books",
+          "cardinality": "many",
+          "participation": "total"
+        },
+        {
+          "entity": "Authors",
+          "cardinality": "many",
+          "participation": "partial"
+        }
+      ],
+      "attributes": []
+    },
+    {
+      "name": "categorized",
+      "participants": [
+        {
+          "entity": "Books",
+          "cardinality": "one",
+          "participation": "partial"
+        },
+        {
+          "entity": "Categories",
+          "cardinality": "many",
+          "participation": "partial"
+        }
+      ],
+      "attributes": []
+    }
+  ]
+}
