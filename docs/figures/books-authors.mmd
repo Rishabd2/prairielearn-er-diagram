@@ -1,0 +1,17 @@
+erDiagram
+    BOOKS {
+        string isbn PK
+        string title
+        int pubYear
+        string genre
+    }
+    AUTHORS {
+        string authorId PK
+        string name
+    }
+    CATEGORIES {
+        string name PK
+        int displayOrder
+    }
+    BOOKS }|--o{ AUTHORS : written_by
+    BOOKS }o--o| CATEGORIES : categorized

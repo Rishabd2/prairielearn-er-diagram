@@ -1,0 +1,16 @@
+erDiagram
+    STUDENT {
+        string student_id PK
+        string name
+        string email
+    }
+    COURSE {
+        string course_id PK
+        string title
+    }
+    ENROLLS {
+        string semester
+        string grade
+    }
+    STUDENT ||--|{ ENROLLS : Enrolls
+    COURSE ||--o{ ENROLLS : Enrolls
