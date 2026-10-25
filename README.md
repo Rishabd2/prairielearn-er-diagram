@@ -89,20 +89,23 @@ Entity and relationship names must be unique and are compared after trimming sur
 
 `prepare()` validates `correct_answers[answers-name]` (when `server.py` sets it in `generate`), so a broken reference answer fails at sync time. `parse()` validates the submission, strips `layout`, and normalizes it (trimmed and sorted names, attributes, and participants), so order, whitespace, and positions never matter. `grade()` then compares it to the normalized `correct_answers[answers-name]` with this rubric (`elements/pl-er-diagram-builder/er_schema.py`):
 
+Entities are worth 1.5 and relationships 2.0 (names 35%, cardinality and participation 35%, attributes 30%).
+
 | Component | Marks | How it is computed |
 | --- | --- | --- |
 | Entity names | 0.6 | share of expected entities present by exact name |
 | Entity attributes | 0.3 | mean, over expected entities, of the Jaccard similarity of descriptive attributes |
 | Entity keys | 0.6 | mean, over expected entities, of the Jaccard similarity of key attributes |
-| Relationship names | 1.0 | share of expected relationships present by exact name |
-| Cardinality and participation | 1.0 | mean, over expected relationships, of (participants matching entity, cardinality, and participation) / (participating entities in submission or answer) |
+| Relationship names | 0.7 | share of expected relationships present by exact name |
+| Cardinality and participation | 0.7 | mean, over expected relationships, of (participants matching entity, cardinality, and participation) / (participating entities in submission or answer) |
+| Relationship attributes | 0.6 | mean, over expected relationships, of the Jaccard similarity of relationship attributes |
 | Extra entity or relationship | -0.25 each | names not in the answer |
 | Weak entity flags (`grade-weak` only) | 0.25 | share of expected entities with matching `weak` |
 | Identifying relationship flags (`grade-weak` only) | 0.25 | share of expected relationships with matching `weak` |
 
-Jaccard similarity is |submitted ∩ expected| / |submitted ∪ expected| (1.0 when both are empty), so padding a list costs credit the same way omissions do. Listing every attribute as both key and descriptive, for example, scores below full marks on both rows, and adding a third participant to a binary relationship lowers that relationship's score to at most 2/3. An entity or relationship missing from the submission scores 0 on its rows.
+Jaccard similarity is |submitted ∩ expected| / |submitted ∪ expected| (1.0 when both are empty), so padding a list costs credit the same way omissions do. Listing every attribute as both key and descriptive, for example, scores below full marks on both rows, and adding a third participant to a binary relationship caps that relationship's cardinality score at 2/3. In the Enrolls sample, leaving out `semester` and `grade` scores 2.9 / 3.5 (8.29 / 10), and adding four junk attributes to Enrolls scores 3.1 / 3.5 (8.86 / 10). An entity or relationship missing from the submission scores 0 on its rows.
 
-The PrairieLearn score is `max(0, total) / max_total`, clipped to [0, 1], where `max_total` is 3.5 (4.0 with `grade-weak`). Relationship attributes are reported in feedback but not scored. Feedback shows the rubric breakdown (scaled to 10) and, when the schema differs, up to 12 specific mismatches such as "Entity Student: attributes differ (1 missing, 1 unexpected)" or "Relationship Enrolls, entity Student: participation incorrect." With `show-expected="true"` the same lines include the expected values.
+The PrairieLearn score is `max(0, total) / max_total`, clipped to [0, 1], where `max_total` is 3.5 (4.0 with `grade-weak`). Feedback shows the rubric breakdown (scaled to 10) and, when the schema differs, up to 12 specific mismatches such as "Entity Student: attributes differ (1 missing, 1 unexpected)" or "Relationship Enrolls, entity Student: participation incorrect." With `show-expected="true"` the same lines include the expected values.
 
 Names are matched exactly (case and spelling), so state the expected names in the question text.
 
@@ -123,7 +126,7 @@ Reference drawings of the shipped schemas, rendered from `examples/*.json` by `s
 
 | Suite | What it covers | Result (`python3 -m pytest -q`) |
 | --- | --- | --- |
-| `tests/test_er_schema.py` | validation, normalization, rubric, extra-item penalties, hidden feedback, `grade-weak`, example conventions | 26 passed |
+| `tests/test_er_schema.py` | validation, normalization, rubric, extra-item penalties, relationship attributes, hidden feedback, `grade-weak`, example conventions | 28 passed |
 | `tests/test_controller.py` | `prepare` / `render` / `parse` / `grade` with a stubbed `prairielearn` module, key validation, `show-expected`, starter diagrams | 17 passed |
 | `tests/test_browser.py` | element JS in headless Chrome: load, select, inspector, add, undo, redo, starter | 1 passed (9 browser checks); skipped without Chrome |
 
@@ -157,7 +160,6 @@ lib/                              re-exports er_schema for tests and scripts
 - Names are compared exactly after trimming whitespace; synonyms or case variants are not accepted.
 - Recursive (unary) relationships such as `Employee manages Employee` are not supported: a relationship may list each entity once, and participants have no role names.
 - A starter diagram is graded like any other submission. In the shipped starter question an unchanged starter scores 1.625 / 4.0 (0.41): full entity marks plus the already-correct Employee weak flag, nothing for the missing relationship. Keep starters small if that is too generous for your question.
-- Relationship attributes appear in mismatch feedback but carry no marks.
 - Rubric weights are fixed in `er_schema.py`; there is no per-question weight override.
 - The controller tests run against a stub of PrairieLearn's `prairielearn` module, not the real runtime.
 

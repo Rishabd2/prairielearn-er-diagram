@@ -23,8 +23,9 @@ WEAK_FLAG_WEIGHT = 0.25
 ENTITY_EXTRA_PENALTY = 0.25
 ENTITY_TOTAL_MAX = 1.5
 
-REL_NAME_WEIGHT = 1.0
-REL_CARD_WEIGHT = 1.0
+REL_NAME_WEIGHT = 0.7
+REL_CARD_WEIGHT = 0.7
+REL_ATTR_WEIGHT = 0.6
 REL_EXTRA_PENALTY = 0.25
 REL_TOTAL_MAX = 2.0
 
@@ -372,10 +373,12 @@ def compute_rubric_marks(sub: dict, exp: dict, grade_weak: bool = False) -> dict
     rel_name_marks = REL_NAME_WEIGHT * safe_ratio(len(matched_rel_names), len(exp_rel_names))
 
     rel_card_sum = 0.0
+    rel_attr_sum = 0.0
     for rn in exp_rel_names:
         sr = sub_rel.get(rn)
         if sr is None:
             continue
+        rel_attr_sum += jaccard(sr["attributes"], exp_rel[rn]["attributes"])
         sub_parts = {(p["entity"], p["cardinality"], p["participation"]) for p in sr["participants"]}
         exp_parts = {(p["entity"], p["cardinality"], p["participation"]) for p in exp_rel[rn]["participants"]}
         # Denominator is the union of participating entities, so an extra
@@ -385,9 +388,12 @@ def compute_rubric_marks(sub: dict, exp: dict, grade_weak: bool = False) -> dict
         rel_card_sum += safe_ratio(len(sub_parts & exp_parts), len(sub_ents | exp_ents))
 
     rel_card_marks = REL_CARD_WEIGHT * safe_ratio(rel_card_sum, len(exp_rel_names))
+    rel_attr_marks = REL_ATTR_WEIGHT * safe_ratio(rel_attr_sum, len(exp_rel_names))
     rel_weak_marks = rel_weak_max * _weak_ratio(sub_rel, exp_rel) if rel_weak_max else 0.0
     rel_extra_penalty = -REL_EXTRA_PENALTY * extra_rel_count
-    rel_total_marks = rel_name_marks + rel_card_marks + rel_weak_marks + rel_extra_penalty
+    rel_total_marks = (
+        rel_name_marks + rel_card_marks + rel_attr_marks + rel_weak_marks + rel_extra_penalty
+    )
 
     entity_total_max = ENTITY_TOTAL_MAX + ent_weak_max
     rel_total_max = REL_TOTAL_MAX + rel_weak_max
@@ -405,6 +411,7 @@ def compute_rubric_marks(sub: dict, exp: dict, grade_weak: bool = False) -> dict
         "total_entity_marks": ent_total_marks,
         "relationship_marks": rel_name_marks,
         "relationship_card_marks": rel_card_marks,
+        "relationship_attr_marks": rel_attr_marks,
         "relationship_weak_marks": rel_weak_marks,
         "extra_relationships_penalty": rel_extra_penalty,
         "total_relationship_marks": rel_total_marks,
@@ -419,6 +426,7 @@ def compute_rubric_marks(sub: dict, exp: dict, grade_weak: bool = False) -> dict
             "entity_total": entity_total_max,
             "relationship_name": REL_NAME_WEIGHT,
             "relationship_card": REL_CARD_WEIGHT,
+            "relationship_attr": REL_ATTR_WEIGHT,
             "relationship_weak": rel_weak_max,
             "relationship_total": rel_total_max,
             "total": total_max,
@@ -443,6 +451,10 @@ def format_marks_feedback(marks: dict, include_mismatch_html: str | None = None)
         (
             "Relationship cardinalities marks: "
             f"{fmt(m['relationship_card_marks'])}/{fmt(mx['relationship_card'])}"
+        ),
+        (
+            "Relationship attribute marks: "
+            f"{fmt(m['relationship_attr_marks'])}/{fmt(mx['relationship_attr'])}"
         ),
         f"Extra relationships: {fmt(m['extra_relationships_penalty'])}",
         (

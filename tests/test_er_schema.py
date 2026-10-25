@@ -214,15 +214,30 @@ class GamingTests(unittest.TestCase):
         )
         sub = _norm(sub)
         marks = compute_rubric_marks(sub, exp)
-        # works_in: 2 matching of 3 entities; chairs: 2 of 2; mean 5/6.
-        self.assertAlmostEqual(marks["relationship_card_marks"], 5 / 6)
+        # works_in: 2 matching of 3 entities; chairs: 2 of 2; mean 5/6 of 0.7.
+        self.assertAlmostEqual(marks["relationship_card_marks"], 0.7 * 5 / 6)
         self.assertLess(marks["score_fraction"], 1.0)
+
+    def test_omitted_relationship_attributes_lose_credit(self):
+        sub = json.loads(json.dumps(self.exp))
+        sub["relationships"][0]["attributes"] = []
+        marks = compute_rubric_marks(sub, self.exp)
+        self.assertEqual(marks["relationship_attr_marks"], 0.0)
+        self.assertAlmostEqual(marks["score_fraction"], (3.5 - 0.6) / 3.5)
+
+    def test_junk_relationship_attributes_lose_credit(self):
+        sub = json.loads(json.dumps(self.exp))
+        sub["relationships"][0]["attributes"] += ["a1", "a2", "a3", "a4"]
+        marks = compute_rubric_marks(sub, self.exp)
+        # Jaccard 2 / 6 of 0.6.
+        self.assertAlmostEqual(marks["relationship_attr_marks"], 0.6 * 2 / 6)
+        self.assertLess(marks["total_scaled_marks"], 10.0)
 
     def test_missing_participant_still_partial(self):
         sub = json.loads(json.dumps(self.exp))
         sub["relationships"][0]["participants"][0]["cardinality"] = "one"
         marks = compute_rubric_marks(sub, self.exp)
-        self.assertAlmostEqual(marks["relationship_card_marks"], 0.5)
+        self.assertAlmostEqual(marks["relationship_card_marks"], 0.35)
 
 
 class NameAndFeedbackTests(unittest.TestCase):
