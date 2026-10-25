@@ -18,7 +18,7 @@ Chen drawing: `docs/figures/student-course.svg` (and `.png`). Crow's-foot mermai
 
 ## Books / Authors / Categories (reference only)
 
-Source: `498erd-example/questions/erd_e3_books/question.html`, a `pl-uml-element` question. The UML answer listed three classes and two unlabeled associations:
+Source: question `erd_e3_books` (a `pl-uml-element` question) in a UIUC PrairieLearn ERD example course. The UML answer listed three classes and two unlabeled associations:
 
 ```
 [Books|isbn {PK}; title; pubYear; genre]

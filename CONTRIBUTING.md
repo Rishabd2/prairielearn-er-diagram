@@ -11,11 +11,15 @@ This repo is a PrairieLearn course element plus the sample question that uses it
 ## Checks
 
 ```bash
-python3 -m unittest tests/test_er_schema.py
+python3 -m pip install -r requirements-dev.txt
+python3 -m pytest -q
+python3 scripts/render_element.py screenshot
 python3 scripts/render_er.py
 ```
 
-The renderer reads `examples/*.json` and overwrites `docs/figures/*.png` and `*.svg`. If you change a schema, rerun it and commit the figures.
+New source files start with `SPDX-License-Identifier: AGPL-3.0-or-later` in a comment. Contributions are accepted under that license.
+
+`render_element.py screenshot` refreshes `docs/figures/element-editor.png` from the live element. The schema renderer reads `examples/*.json` and overwrites `docs/figures/*.png` and `*.svg`. If you change a schema, rerun it and commit the figures.
 
 ## Local PrairieLearn
 
@@ -23,4 +27,4 @@ Install PrairieLearn, point it at this directory (it is a complete course: `info
 
 ## Pull requests
 
-Say what you changed and how you tested it (unittest, local PrairieLearn, or both). Match the existing JSON shape (`entities`, `relationships`, optional `layout`).
+Say what you changed and how you tested it (pytest, local PrairieLearn, or both). Match the existing JSON shape (`entities`, `relationships`, optional `layout`).

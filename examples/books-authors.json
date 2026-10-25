@@ -1,5 +1,5 @@
 {
-  "_source": "498erd-example/questions/erd_e3_books/question.html (pl-uml-element answer). Relationship names are the verbs from that question text; the UML associations were unlabeled.",
+  "_source": "PrairieLearn question erd_e3_books, UIUC ERD example course (pl-uml-element answer). Relationship names are the verbs from that question text; the UML associations were unlabeled.",
   "entities": [
     {
       "name": "Books",

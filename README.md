@@ -1,89 +1,163 @@
 # pl-er-diagram-builder
 
-PrairieLearn element for building and grading Chen-style entity-relationship diagrams. Students draw on a canvas (or edit JSON). The server scores the semantic schema and ignores layout.
+An open-source [PrairieLearn](https://github.com/PrairieLearn/PrairieLearn) element for drawing and auto-grading Chen-style entity-relationship diagrams. Students build the diagram on a canvas (or edit JSON); the server grades the semantic schema with partial credit and ignores layout.
 
-This is course work from UIUC CS 498 (Designing Software for Education), not an official [PrairieLearn](https://github.com/PrairieLearn/PrairieLearn) project.
+![The element in the question panel: Student and Course entities joined by the Enrolls relationship, with the relationship inspector open on the right](docs/figures/element-editor.png)
 
-## What the sample models
+*The element itself, rendered from the real controller, template, JS, and CSS in headless Chrome by `scripts/render_element.py screenshot`.*
 
-The shipped question is a Student / Course enrollment schema:
+## Features
 
-- **Student** — key `student_id`; attributes `name`, `email`
-- **Course** — key `course_id`; attribute `title`
-- **Enrolls** — many-to-many; attributes `semester`, `grade`. Student participation is total. Course participation is partial.
+- Canvas editing: add, drag, rename, and delete entities and relationships; double-click empty canvas to add an entity.
+- Selection inspector: names, key and descriptive attributes, weak flags, participants, cardinality (`one` / `many`), participation (`total` / `partial`), with Apply / Discard.
+- Binary, ternary, and higher relationships; weak entities (double box) and identifying relationships (double diamond).
+- Undo / redo (toolbar or Ctrl+Z / Ctrl+Shift+Z), zoom, and an optional JSON view.
+- Starter diagrams: preload a partial diagram from `server.py`.
+- Partial-credit grading with an itemized rubric and a list of specific mismatches.
+- Submission panel shows a read-only diagram plus the submitted JSON.
+
+## Use it in your course
+
+1. Copy `elements/pl-er-diagram-builder/` into your course's `elements/` directory.
+2. Add the element to a question's `question.html`:
+
+   ```html
+   <pl-question-panel>
+     <p>Model students enrolling in courses. Student (key <code>student_id</code>; <code>name</code>, <code>email</code>),
+     Course (key <code>course_id</code>; <code>title</code>), and a many-to-many relationship
+     <strong>Enrolls</strong> with <code>semester</code> and <code>grade</code>.
+     Student participation is total; Course participation is partial.</p>
+   </pl-question-panel>
+
+   <pl-er-diagram-builder answers-name="er" height="520"></pl-er-diagram-builder>
+   ```
+
+3. Put the reference answer in `server.py` under the same `answers-name`:
+
+   ```python
+   def generate(data):
+       data["correct_answers"]["er"] = {
+           "entities": [
+               {"name": "Student", "key_attributes": ["student_id"], "attributes": ["name", "email"]},
+               {"name": "Course", "key_attributes": ["course_id"], "attributes": ["title"]},
+           ],
+           "relationships": [
+               {
+                   "name": "Enrolls",
+                   "participants": [
+                       {"entity": "Student", "cardinality": "many", "participation": "total"},
+                       {"entity": "Course", "cardinality": "many", "participation": "partial"},
+                   ],
+                   "attributes": ["semester", "grade"],
+               }
+           ],
+       }
+   ```
+
+4. Sync the course. Both sample questions are in [`questions/element/`](questions/element/).
+
+To try it without an existing course: this repository is itself a loadable PrairieLearn course (`infoCourse.json`, `courseInstances/demo/`). Start a local PrairieLearn ([install guide](https://prairielearn.readthedocs.io/en/latest/installing/)), mount this directory as the course, Load from disk, and open the "ER diagram builder" assessment.
+
+## Element attributes
+
+| Attribute | Type | Default | Description |
+| --- | --- | --- | --- |
+| `answers-name` | string | required | Key for `correct_answers`, `submitted_answers`, and the `<name>-raw` form field. |
+| `weight` | integer | `1` | Weight of this element in the question score. |
+| `height` | integer | `600` | Canvas height in pixels. |
+| `disable-grading` | boolean | `false` | Store submissions without grading them. |
+| `hide-instructions` | boolean | `false` | Hide the collapsible help block above the canvas. |
+| `starter-params-name` | string | none | Key in `data["params"]` holding a starter diagram (dict or JSON string). Shown until the student's first save; validated in `prepare`. |
+| `grade-weak` | boolean | `false` | Also score weak-entity and identifying-relationship flags (see below). |
+
+Editor usage, keyboard shortcuts, and more JSON examples: [`elements/pl-er-diagram-builder/README.md`](elements/pl-er-diagram-builder/README.md).
+
+## Answer format
+
+Submissions and reference answers share one JSON shape:
+
+- `entities[]`: `name`, `key_attributes[]`, `attributes[]`, optional `weak` (boolean)
+- `relationships[]`: `name`, `participants[]` (at least two, each entity at most once, each with `cardinality` `one|many` and `participation` `total|partial`), `attributes[]`, optional `weak` (boolean)
+- `layout` (optional): canvas positions. Stored for the editor, stripped before grading.
+
+Entity and relationship names must be unique. `parse()` rejects malformed submissions with a format error instead of a score. Field notes and the shipped schemas: [`docs/schema.md`](docs/schema.md).
+
+## Grading contract
+
+`parse()` validates the submission, strips `layout`, and normalizes it (sorted names, attributes, and participants), so order and positions never matter. `grade()` then compares it to the normalized `correct_answers[answers-name]` with this rubric (`elements/pl-er-diagram-builder/er_schema.py`):
+
+| Component | Marks | How it is computed |
+| --- | --- | --- |
+| Entity names | 0.6 | share of expected entities present by exact name |
+| Entity attributes | 0.3 | mean, over expected entities, of the share of descriptive attributes present |
+| Entity keys | 0.6 | mean, over expected entities, of the share of key attributes present |
+| Relationship names | 1.0 | share of expected relationships present by exact name |
+| Cardinality and participation | 1.0 | mean, over expected relationships, of the share of participants with matching (cardinality, participation) |
+| Extra entity or relationship | -0.25 each | names not in the answer |
+| Weak entity flags (`grade-weak` only) | 0.25 | share of expected entities with matching `weak` |
+| Identifying relationship flags (`grade-weak` only) | 0.25 | share of expected relationships with matching `weak` |
+
+The PrairieLearn score is `max(0, total) / max_total`, clipped to [0, 1], where `max_total` is 3.5 (4.0 with `grade-weak`). Relationship attributes are reported in feedback but not scored. Feedback shows the rubric breakdown (scaled to 10) and, when the schema differs, up to 12 specific mismatches such as "Relationship Enrolls, entity Student: cardinality/participation are many/partial, expected many/total."
+
+Names are matched exactly (case and spelling), so state the expected names in the question text.
+
+## Example questions
+
+| Question | What it shows |
+| --- | --- |
+| [`questions/element/erDiagram/`](questions/element/erDiagram/) | Student / Course / Enrolls, many-to-many with relationship attributes and total participation. |
+| [`questions/element/erDiagramStarter/`](questions/element/erDiagramStarter/) | Starter diagram (Employee and Pay preloaded); the student marks Pay weak and adds the identifying relationship `paid_by`. Uses `grade-weak`. |
+
+Reference drawings of the shipped schemas, rendered from `examples/*.json` by `scripts/render_er.py`:
 
 ![Chen ER diagram of Student, Course, and Enrolls](docs/figures/student-course.png)
 
-JSON for that diagram: [`examples/student-course.json`](examples/student-course.json). Field-level notes: [`docs/schema.md`](docs/schema.md).
+`docs/figures/` also has `books-authors.*` and `employee-pay.*`, plus Mermaid crow's-foot sources (`*.mmd`).
 
-A second diagram, Books / Authors / Categories, comes from a `pl-uml-element` question in `498erd-example`. It is documentation only (see `examples/books-authors.json`).
+## Tests
 
-## Setup
+| Suite | What it covers | Result (`python3 -m pytest -q`) |
+| --- | --- | --- |
+| `tests/test_er_schema.py` | validation, normalization, rubric, `grade-weak` | 18 passed |
+| `tests/test_controller.py` | `prepare` / `render` / `parse` / `grade` with a stubbed `prairielearn` module, starter diagrams | 15 passed |
+| `tests/test_browser.py` | element JS in headless Chrome: load, select, inspector, add, undo, redo, starter | 1 passed (9 browser checks); skipped without Chrome |
 
-Python 3.10+ is enough for tests. The PrairieLearn container already has `prairielearn`, `chevron`, and `lxml`.
-
-```bash
-python3 -m unittest tests/test_er_schema.py
-```
-
-To redraw the figures:
+## Reproduce
 
 ```bash
 python3 -m pip install -r requirements-dev.txt
-python3 scripts/render_er.py
+python3 -m pytest -q                          # all tests
+python3 scripts/render_element.py smoke       # browser checks only (needs Chrome or Chromium; CHROME=/path overrides)
+python3 scripts/render_element.py screenshot  # docs/figures/element-editor.png
+python3 scripts/render_er.py                  # docs/figures/{student-course,books-authors,employee-pay}.{png,svg}
 ```
 
-To run the sample question, install [PrairieLearn](https://prairielearn.readthedocs.io/en/latest/installing/) (Docker is the usual path), point it at this repo root, and Load from disk.
+The screenshot and browser checks load Bootstrap 5 CSS from jsDelivr, so they need network access.
 
-## Use it in a PrairieLearn course
-
-Copy `elements/pl-er-diagram-builder/` into your course `elements/` directory. Copy `questions/element/erDiagram/` if you want the sample. Sync the course.
-
-```html
-<pl-question-panel>
-  <p>Build an ER diagram with entities <strong>Student</strong> and <strong>Course</strong>,
-  and a many–many relationship <strong>Enrolls</strong> with attributes
-  <code>semester</code> and <code>grade</code>. Use <code>student_id</code> and
-  <code>course_id</code> as keys; include attributes <code>name</code> and
-  <code>email</code> on Student and <code>title</code> on Course. Student
-  participation in Enrolls is total; Course participation is partial.</p>
-</pl-question-panel>
-
-<pl-er-diagram-builder answers-name="er" height="520"></pl-er-diagram-builder>
-```
-
-Set the answer in `server.py` as `data["correct_answers"]["er"]` using `entities` and `relationships`. Leave `layout` out; grading drops it.
-
-This repository is also a loadable PrairieLearn course (`infoCourse.json` + `courseInstances/demo`). Point a local PrairieLearn at the repo root, Load from disk, and open Homework 1.
-
-Element attributes, inspector behavior, and the JSON shape are in [`elements/pl-er-diagram-builder/README.md`](elements/pl-er-diagram-builder/README.md).
-
-## How grading works
-
-`elements/pl-er-diagram-builder/er_schema.py` validates the submission, sorts names and attributes, then compares it to the configured answer. Order does not matter. Extra entities and relationships cost 0.25 each. The displayed score is scaled to 10.
-
-```bash
-python3 -m unittest tests/test_er_schema.py
-```
-
-## How to draw the figures
-
-```bash
-python3 scripts/render_er.py
-```
-
-Writes `docs/figures/*.png` and `*.svg` from `examples/*.json`. Mermaid crow's-foot sources sit next to them (`*.mmd`) if you want that view instead of Chen.
-
-## Layout
+## Repo layout
 
 ```
-elements/pl-er-diagram-builder/   drop this folder into a course
-questions/element/erDiagram/      Student / Course sample
-examples/                         schema JSON used by tests and the renderer
-docs/figures/                     rendered diagrams
-courseInstances/demo/             local PrairieLearn assessment
+elements/pl-er-diagram-builder/   the element: controller, er_schema.py grader, JS, CSS, template
+questions/element/                sample questions (plain and starter)
+courseInstances/demo/             demo assessment for a local PrairieLearn
+examples/                         schema JSON used by tests and the figure script
+scripts/                          render_element.py (screenshot, browser checks), render_er.py (Chen figures)
+tests/                            pytest suites
+docs/                             schema notes and figures
+lib/                              re-exports er_schema for tests and scripts
 ```
+
+## Limitations
+
+- Names are compared exactly; synonyms or case variants are not accepted.
+- Relationship attributes appear in mismatch feedback but carry no marks.
+- Rubric weights are fixed in `er_schema.py`; there is no per-question weight override.
+- The controller tests run against a stub of PrairieLearn's `prairielearn` module, not the real runtime.
 
 ## License
 
-AGPL-3.0-or-later, matching PrairieLearn (AGPL-3.0). Full text in [LICENSE](LICENSE); attributions in [NOTICE](NOTICE).
+AGPL-3.0-or-later, matching PrairieLearn (AGPL-3.0). Full text in [LICENSE](LICENSE); attributions in [NOTICE](NOTICE). Every source file carries an `SPDX-License-Identifier: AGPL-3.0-or-later` header.
+
+## Acknowledgements
+
+Developed as open-source PrairieLearn element work at the University of Illinois Urbana-Champaign. The Books / Authors / Categories schema is translated from a question in a UIUC PrairieLearn ERD example course (see NOTICE).
