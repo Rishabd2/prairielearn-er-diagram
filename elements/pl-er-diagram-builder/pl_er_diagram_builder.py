@@ -56,6 +56,7 @@ def prepare(element_html: str, data: pl.QuestionData) -> None:
             "hide-instructions",
             "starter-params-name",
             "grade-weak",
+            "show-expected",
         ],
     )
     name = pl.get_string_attrib(element, "answers-name")
@@ -63,7 +64,18 @@ def prepare(element_html: str, data: pl.QuestionData) -> None:
         "disable_grading": pl.get_boolean_attrib(element, "disable-grading", False),
         "hide_instructions": pl.get_boolean_attrib(element, "hide-instructions", False),
         "grade_weak": pl.get_boolean_attrib(element, "grade-weak", False),
+        "show_expected": pl.get_boolean_attrib(element, "show-expected", False),
     }
+
+    # Fail at sync time, not at grading time, when the reference answer is broken.
+    # (A server.py that sets it later, in its own prepare(), is checked in grade().)
+    if name in data.get("correct_answers", {}):
+        key = data["correct_answers"][name]
+        if not isinstance(key, dict):
+            raise ValueError(f'correct_answers["{name}"] must be a dict.')
+        key_err = validate(key)
+        if key_err is not None:
+            raise ValueError(f'correct_answers["{name}"] is invalid: {key_err}')
 
     starter_key = pl.get_string_attrib(element, "starter-params-name", None)
     if starter_key is not None:
@@ -219,7 +231,12 @@ def grade(element_html: str, data: pl.QuestionData) -> None:
     marks = compute_rubric_marks(
         sub, expected, grade_weak=bool(data["params"][name].get("grade_weak"))
     )
-    mismatch_feedback = None if sub == expected else schema_mismatch_feedback(sub, expected)
+    show_expected = bool(data["params"][name].get("show_expected"))
+    mismatch_feedback = (
+        None
+        if sub == expected
+        else schema_mismatch_feedback(sub, expected, show_expected=show_expected)
+    )
     data["partial_scores"][name] = {
         "score": marks["score_fraction"],
         "weight": weight,

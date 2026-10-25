@@ -137,6 +137,27 @@ class ControllerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ctl.prepare('<pl-er-diagram-builder answers-name="er" colour="red"></pl-er-diagram-builder>', new_data())
 
+    def test_prepare_rejects_invalid_correct_answer(self):
+        data = new_data()
+        data["correct_answers"]["er"] = {"entities": [{"name": "A"}], "relationships": []}
+        with self.assertRaises(ValueError):
+            self.ctl.prepare(SIMPLE, data)
+
+    def test_show_expected_controls_feedback(self):
+        for tag, leaks in (
+            (SIMPLE, False),
+            ('<pl-er-diagram-builder answers-name="er" show-expected="true"></pl-er-diagram-builder>', True),
+        ):
+            data = new_data()
+            load_server("erDiagram").generate(data)
+            self.ctl.prepare(tag, data)
+            answer = json.loads(json.dumps(data["correct_answers"]["er"]))
+            answer["entities"][0]["attributes"] = []
+            data["raw_submitted_answers"]["er-raw"] = json.dumps(answer)
+            self.ctl.parse(tag, data)
+            self.ctl.grade(tag, data)
+            self.assertEqual("(expected" in data["partial_scores"]["er"]["feedback"], leaks)
+
     def test_render_question_panel_empty(self):
         data = self._student_course()
         with in_element_dir():
@@ -235,7 +256,8 @@ class StarterTests(unittest.TestCase):
         data["raw_submitted_answers"]["er-raw"] = json.dumps(data["params"]["er_starter"])
         self.ctl.parse(self.TAG, data)
         self.ctl.grade(self.TAG, data)
-        self.assertLess(data["partial_scores"]["er"]["score"], 1.0)
+        # Entities 1.5 + Employee weak flag 0.125, no relationship marks: 1.625 / 4.0.
+        self.assertAlmostEqual(data["partial_scores"]["er"]["score"], 1.625 / 4.0)
 
     def test_reference_answer_scores_full(self):
         data = self._data()

@@ -175,6 +175,104 @@ class GradeTests(unittest.TestCase):
         self.assertIn("Total scaled marks: 10/10", html)
 
 
+def _norm(doc):
+    return normalize_semantic(strip_layout(doc))
+
+
+class GamingTests(unittest.TestCase):
+    """Padding lists with extra items must not earn full credit."""
+
+    def setUp(self):
+        self.exp = _norm(load_example("student-course.json"))
+
+    def test_every_attribute_as_key_and_descriptive_loses_credit(self):
+        sub = json.loads(json.dumps(self.exp))
+        for e in sub["entities"]:
+            everything = sorted(set(e["key_attributes"]) | set(e["attributes"]))
+            e["key_attributes"] = everything
+            e["attributes"] = everything
+        marks = compute_rubric_marks(sub, self.exp)
+        self.assertLess(marks["entity_pk_marks"], 0.6)
+        self.assertLess(marks["entity_attr_marks"], 0.3)
+        self.assertLess(marks["score_fraction"], 1.0)
+
+    def test_extra_key_attribute_scored_by_jaccard(self):
+        sub = json.loads(json.dumps(self.exp))
+        for e in sub["entities"]:
+            if e["name"] == "Student":
+                e["key_attributes"] = ["email", "student_id"]
+        marks = compute_rubric_marks(sub, self.exp)
+        # Student keys: 1/2; Course keys: 1/1; mean 0.75 of 0.6.
+        self.assertAlmostEqual(marks["entity_pk_marks"], 0.6 * 0.75)
+
+    def test_third_participant_on_binary_relationship_loses_credit(self):
+        exp = _norm(load_example("department-professor.json"))
+        sub = json.loads(json.dumps(load_example("department-professor.json")))
+        sub["entities"].append({"name": "Room", "key_attributes": ["room_no"], "attributes": []})
+        sub["relationships"][0]["participants"].append(
+            {"entity": "Room", "cardinality": "many", "participation": "partial"}
+        )
+        sub = _norm(sub)
+        marks = compute_rubric_marks(sub, exp)
+        # works_in: 2 matching of 3 entities; chairs: 2 of 2; mean 5/6.
+        self.assertAlmostEqual(marks["relationship_card_marks"], 5 / 6)
+        self.assertLess(marks["score_fraction"], 1.0)
+
+    def test_missing_participant_still_partial(self):
+        sub = json.loads(json.dumps(self.exp))
+        sub["relationships"][0]["participants"][0]["cardinality"] = "one"
+        marks = compute_rubric_marks(sub, self.exp)
+        self.assertAlmostEqual(marks["relationship_card_marks"], 0.5)
+
+
+class NameAndFeedbackTests(unittest.TestCase):
+    def setUp(self):
+        self.exp = _norm(load_example("student-course.json"))
+
+    def test_whitespace_in_names_is_ignored(self):
+        sub = load_example("student-course.json")
+        sub["entities"][0]["name"] = "  " + sub["entities"][0]["name"] + " "
+        sub["entities"][0]["attributes"] = [a + " " for a in sub["entities"][0]["attributes"]]
+        for p in sub["relationships"][0]["participants"]:
+            p["entity"] = " " + p["entity"]
+        self.assertIsNone(validate(sub))
+        self.assertEqual(_norm(sub), self.exp)
+
+    def test_feedback_hides_expected_by_default(self):
+        sub = json.loads(json.dumps(self.exp))
+        sub["entities"][0]["attributes"] = ["wrong"]
+        sub["relationships"][0]["participants"][0]["cardinality"] = "one"
+        hidden = schema_mismatch_feedback(sub, self.exp)
+        self.assertNotIn("(expected", hidden)
+        self.assertNotIn(", expected", hidden)
+        self.assertNotIn("title", hidden)
+        self.assertIn("1 missing, 1 unexpected", hidden)
+        self.assertIn("cardinality incorrect", hidden)
+        shown = schema_mismatch_feedback(sub, self.exp, show_expected=True)
+        self.assertIn("(expected [&#x27;title&#x27;])", shown)
+        self.assertIn(", expected <code>many</code>", shown)
+
+
+class ExampleConventionTests(unittest.TestCase):
+    """Weak entities participate totally in their identifying relationship."""
+
+    def test_weak_entities_total_in_identifying_relationships(self):
+        for name in ("student-course.json", "department-professor.json", "employee-pay.json"):
+            doc = load_example(name)
+            weak = {e["name"] for e in doc["entities"] if e.get("weak")}
+            for r in doc["relationships"]:
+                if not r.get("weak"):
+                    continue
+                for p in r["participants"]:
+                    if p["entity"] in weak:
+                        self.assertEqual(p["participation"], "total", f"{name}: {r['name']}")
+
+    def test_entities_have_keys(self):
+        for name in ("student-course.json", "department-professor.json", "employee-pay.json"):
+            for e in load_example(name)["entities"]:
+                self.assertTrue(e["key_attributes"], f"{name}: {e['name']}")
+
+
 
 class GradeWeakTests(unittest.TestCase):
     def setUp(self):

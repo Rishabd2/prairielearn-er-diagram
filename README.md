@@ -69,6 +69,7 @@ To try it without an existing course: this repository is itself a loadable Prair
 | `hide-instructions` | boolean | `false` | Hide the collapsible help block above the canvas. |
 | `starter-params-name` | string | none | Key in `data["params"]` holding a starter diagram (dict or JSON string). Shown until the student's first save; validated in `prepare`. |
 | `grade-weak` | boolean | `false` | Also score weak-entity and identifying-relationship flags (see below). |
+| `show-expected` | boolean | `false` | Include expected attribute lists, weak flags, and cardinality/participation values in mismatch feedback. Off by default, so feedback says what is wrong without revealing the answer. |
 
 Editor usage, keyboard shortcuts, and more JSON examples: [`elements/pl-er-diagram-builder/README.md`](elements/pl-er-diagram-builder/README.md).
 
@@ -80,24 +81,28 @@ Submissions and reference answers share one JSON shape:
 - `relationships[]`: `name`, `participants[]` (at least two, each entity at most once, each with `cardinality` `one|many` and `participation` `total|partial`), `attributes[]`, optional `weak` (boolean)
 - `layout` (optional): canvas positions. Stored for the editor, stripped before grading.
 
-Entity and relationship names must be unique. `parse()` rejects malformed submissions with a format error instead of a score. Field notes and the shipped schemas: [`docs/schema.md`](docs/schema.md).
+**Cardinality convention.** A participant's `cardinality` describes that entity's own side of the relationship: the maximum number of instances of *this* entity related to one instance of the other participant(s). It is drawn as `1` / `N` on the line next to that entity, as in Chen notation. `participation` is `total` when every instance of the entity must take part (double line). Example: in `paid_by`, Pay is `many` (an employee has many pay records), Employee is `one` (each pay record belongs to one employee), and Pay is `total` because a weak entity always participates totally in its identifying relationship. Every shipped example and question text follows this convention; see [`docs/schema.md`](docs/schema.md) for the reasoning behind each value.
+
+Entity and relationship names must be unique and are compared after trimming surrounding whitespace. `parse()` rejects malformed submissions with a format error instead of a score. Field notes and the shipped schemas: [`docs/schema.md`](docs/schema.md).
 
 ## Grading contract
 
-`parse()` validates the submission, strips `layout`, and normalizes it (sorted names, attributes, and participants), so order and positions never matter. `grade()` then compares it to the normalized `correct_answers[answers-name]` with this rubric (`elements/pl-er-diagram-builder/er_schema.py`):
+`prepare()` validates `correct_answers[answers-name]` (when `server.py` sets it in `generate`), so a broken reference answer fails at sync time. `parse()` validates the submission, strips `layout`, and normalizes it (trimmed and sorted names, attributes, and participants), so order, whitespace, and positions never matter. `grade()` then compares it to the normalized `correct_answers[answers-name]` with this rubric (`elements/pl-er-diagram-builder/er_schema.py`):
 
 | Component | Marks | How it is computed |
 | --- | --- | --- |
 | Entity names | 0.6 | share of expected entities present by exact name |
-| Entity attributes | 0.3 | mean, over expected entities, of the share of descriptive attributes present |
-| Entity keys | 0.6 | mean, over expected entities, of the share of key attributes present |
+| Entity attributes | 0.3 | mean, over expected entities, of the Jaccard similarity of descriptive attributes |
+| Entity keys | 0.6 | mean, over expected entities, of the Jaccard similarity of key attributes |
 | Relationship names | 1.0 | share of expected relationships present by exact name |
-| Cardinality and participation | 1.0 | mean, over expected relationships, of the share of participants with matching (cardinality, participation) |
+| Cardinality and participation | 1.0 | mean, over expected relationships, of (participants matching entity, cardinality, and participation) / (participating entities in submission or answer) |
 | Extra entity or relationship | -0.25 each | names not in the answer |
 | Weak entity flags (`grade-weak` only) | 0.25 | share of expected entities with matching `weak` |
 | Identifying relationship flags (`grade-weak` only) | 0.25 | share of expected relationships with matching `weak` |
 
-The PrairieLearn score is `max(0, total) / max_total`, clipped to [0, 1], where `max_total` is 3.5 (4.0 with `grade-weak`). Relationship attributes are reported in feedback but not scored. Feedback shows the rubric breakdown (scaled to 10) and, when the schema differs, up to 12 specific mismatches such as "Relationship Enrolls, entity Student: cardinality/participation are many/partial, expected many/total."
+Jaccard similarity is |submitted ∩ expected| / |submitted ∪ expected| (1.0 when both are empty), so padding a list costs credit the same way omissions do. Listing every attribute as both key and descriptive, for example, scores below full marks on both rows, and adding a third participant to a binary relationship lowers that relationship's score to at most 2/3. An entity or relationship missing from the submission scores 0 on its rows.
+
+The PrairieLearn score is `max(0, total) / max_total`, clipped to [0, 1], where `max_total` is 3.5 (4.0 with `grade-weak`). Relationship attributes are reported in feedback but not scored. Feedback shows the rubric breakdown (scaled to 10) and, when the schema differs, up to 12 specific mismatches such as "Entity Student: attributes differ (1 missing, 1 unexpected)" or "Relationship Enrolls, entity Student: participation incorrect." With `show-expected="true"` the same lines include the expected values.
 
 Names are matched exactly (case and spelling), so state the expected names in the question text.
 
@@ -112,14 +117,14 @@ Reference drawings of the shipped schemas, rendered from `examples/*.json` by `s
 
 ![Chen ER diagram of Student, Course, and Enrolls](docs/figures/student-course.png)
 
-`docs/figures/` also has `books-authors.*` and `employee-pay.*`, plus Mermaid crow's-foot sources (`*.mmd`).
+`docs/figures/` also has `department-professor.*` (a one-to-many and a one-to-one relationship between the same pair of entities) and `employee-pay.*`, plus Mermaid crow's-foot sources (`*.mmd`).
 
 ## Tests
 
 | Suite | What it covers | Result (`python3 -m pytest -q`) |
 | --- | --- | --- |
-| `tests/test_er_schema.py` | validation, normalization, rubric, `grade-weak` | 18 passed |
-| `tests/test_controller.py` | `prepare` / `render` / `parse` / `grade` with a stubbed `prairielearn` module, starter diagrams | 15 passed |
+| `tests/test_er_schema.py` | validation, normalization, rubric, extra-item penalties, hidden feedback, `grade-weak`, example conventions | 26 passed |
+| `tests/test_controller.py` | `prepare` / `render` / `parse` / `grade` with a stubbed `prairielearn` module, key validation, `show-expected`, starter diagrams | 17 passed |
 | `tests/test_browser.py` | element JS in headless Chrome: load, select, inspector, add, undo, redo, starter | 1 passed (9 browser checks); skipped without Chrome |
 
 ## Reproduce
@@ -129,7 +134,7 @@ python3 -m pip install -r requirements-dev.txt
 python3 -m pytest -q                          # all tests
 python3 scripts/render_element.py smoke       # browser checks only (needs Chrome or Chromium; CHROME=/path overrides)
 python3 scripts/render_element.py screenshot  # docs/figures/element-editor.png
-python3 scripts/render_er.py                  # docs/figures/{student-course,books-authors,employee-pay}.{png,svg}
+python3 scripts/render_er.py                  # docs/figures/{student-course,department-professor,employee-pay}.{png,svg}
 ```
 
 The screenshot and browser checks load Bootstrap 5 CSS from jsDelivr, so they need network access.
@@ -149,7 +154,9 @@ lib/                              re-exports er_schema for tests and scripts
 
 ## Limitations
 
-- Names are compared exactly; synonyms or case variants are not accepted.
+- Names are compared exactly after trimming whitespace; synonyms or case variants are not accepted.
+- Recursive (unary) relationships such as `Employee manages Employee` are not supported: a relationship may list each entity once, and participants have no role names.
+- A starter diagram is graded like any other submission. In the shipped starter question an unchanged starter scores 1.625 / 4.0 (0.41): full entity marks plus the already-correct Employee weak flag, nothing for the missing relationship. Keep starters small if that is too generous for your question.
 - Relationship attributes appear in mismatch feedback but carry no marks.
 - Rubric weights are fixed in `er_schema.py`; there is no per-question weight override.
 - The controller tests run against a stub of PrairieLearn's `prairielearn` module, not the real runtime.
@@ -160,4 +167,4 @@ AGPL-3.0-or-later, matching PrairieLearn (AGPL-3.0). Full text in [LICENSE](LICE
 
 ## Acknowledgements
 
-Developed as open-source PrairieLearn element work at the University of Illinois Urbana-Champaign. The Books / Authors / Categories schema is translated from a question in a UIUC PrairieLearn ERD example course (see NOTICE).
+Developed as open-source PrairieLearn element work at the University of Illinois Urbana-Champaign.
