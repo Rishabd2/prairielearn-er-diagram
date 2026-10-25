@@ -1,0 +1,61 @@
+{
+  "_source": "Original example for this repository (no external source).",
+  "entities": [
+    {
+      "name": "Department",
+      "key_attributes": [
+        "dept_code"
+      ],
+      "attributes": [
+        "dept_name",
+        "building"
+      ]
+    },
+    {
+      "name": "Professor",
+      "key_attributes": [
+        "prof_id"
+      ],
+      "attributes": [
+        "name",
+        "office"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "name": "works_in",
+      "participants": [
+        {
+          "entity": "Professor",
+          "cardinality": "many",
+          "participation": "total"
+        },
+        {
+          "entity": "Department",
+          "cardinality": "one",
+          "participation": "partial"
+        }
+      ],
+      "attributes": [
+        "start_date"
+      ]
+    },
+    {
+      "name": "chairs",
+      "participants": [
+        {
+          "entity": "Professor",
+          "cardinality": "one",
+          "participation": "partial"
+        },
+        {
+          "entity": "Department",
+          "cardinality": "one",
+          "participation": "total"
+        }
+      ],
+      "attributes": []
+    }
+  ]
+}

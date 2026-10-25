@@ -88,10 +88,11 @@ The `layout` field is preserved for the editor but stripped before grading.
 - **Weak entity**: set `"weak": true` on an entity. The canvas draws a double rectangle.
 - **Identifying (weak) relationship**: set `"weak": true` on a relationship. The canvas draws a double diamond.
 
-Example snippet:
+Example snippet (a weak entity always has total participation in its identifying relationship):
 
 ```json
 "entities": [
+  { "name": "Employee", "key_attributes": ["emp_id"], "attributes": ["name"] },
   { "name": "Pay", "key_attributes": ["pay_no"], "attributes": ["hours"], "weak": true }
 ],
 "relationships": [
@@ -99,8 +100,8 @@ Example snippet:
     "name": "paid_by",
     "weak": true,
     "participants": [
-      { "entity": "Employee", "cardinality": "one", "participation": "total" },
-      { "entity": "Pay", "cardinality": "many", "participation": "partial" }
+      { "entity": "Employee", "cardinality": "one", "participation": "partial" },
+      { "entity": "Pay", "cardinality": "many", "participation": "total" }
     ],
     "attributes": []
   }
@@ -113,6 +114,8 @@ Each participant must include:
 
 - `"cardinality"`: `"one"` or `"many"`
 - `"participation"`: `"total"` or `"partial"`
+
+`cardinality` describes the participant's own side: the maximum number of instances of this entity related to one instance of the other participant(s). It is drawn as `1` / `N` next to that entity (Chen notation). In `paid_by` above, Pay is `many` because one employee has many pay records. `participation` is `total` when every instance of this entity must take part (drawn as a double line).
 
 Use the inspector dropdowns when a relationship is selected, or set these fields in JSON.
 
@@ -132,6 +135,7 @@ Create a relationship with **at least two** participants (binary by default). To
 | `disable-grading` | boolean | `false` | If `true`, the element stores submissions but does not grade them. |
 | `hide-instructions` | boolean | `false` | If `true`, the collapsible help block at the top of the element is hidden. |
 | `grade-weak` | boolean | `false` | If `true`, weak-entity and identifying-relationship flags are scored (0.25 each, rubric total 4.0 instead of 3.5). Off by default, so existing questions keep their scores. |
+| `show-expected` | boolean | `false` | If `true`, mismatch feedback includes the expected attribute lists, weak flags, and cardinality/participation values. Otherwise feedback says what is wrong (for example "2 missing, 1 unexpected") without revealing the answer. |
 | `starter-params-name` | string | none | Key in `data["params"]` holding a starter diagram (dict or JSON string, same shape as a submission, `layout` optional). Shown until the student saves their first answer. Validated in `prepare`. |
 
 ## How to use
@@ -153,7 +157,7 @@ Set a starter in `server.py` and name it with `starter-params-name`:
 def generate(data):
     data["params"]["er_starter"] = {
         "entities": [
-            {"name": "Employee", "key_attributes": [], "attributes": []},
+            {"name": "Employee", "key_attributes": ["emp_id"], "attributes": ["name"]},
             {"name": "Pay", "key_attributes": ["pay_no"], "attributes": ["hours"]},
         ],
         "relationships": [],
@@ -164,4 +168,4 @@ def generate(data):
 <pl-er-diagram-builder answers-name="er" starter-params-name="er_starter"></pl-er-diagram-builder>
 ```
 
-The starter appears on the canvas until the student saves; after that the saved answer is shown. The starter is not graded on its own: a student who submits it unchanged is scored against `correct_answers` like any other submission. Full example: `questions/element/erDiagramStarter/`.
+The starter appears on the canvas until the student saves; after that the saved answer is shown. The starter is not graded on its own: a student who submits it unchanged is scored against `correct_answers` like any other submission. In the shipped starter question an unchanged starter scores 1.625 / 4.0 (0.41): full entity marks plus the Employee weak flag, and nothing for the missing relationship. Full example: `questions/element/erDiagramStarter/`.

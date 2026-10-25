@@ -31,8 +31,8 @@ class ValidateTests(unittest.TestCase):
     def test_student_course_valid(self):
         self.assertIsNone(validate(load_example("student-course.json")))
 
-    def test_books_authors_valid(self):
-        self.assertIsNone(validate(load_example("books-authors.json")))
+    def test_department_professor_valid(self):
+        self.assertIsNone(validate(load_example("department-professor.json")))
 
     def test_employee_pay_valid(self):
         self.assertIsNone(validate(load_example("employee-pay.json")))

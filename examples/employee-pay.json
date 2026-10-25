@@ -1,16 +1,24 @@
 {
-  "_source": "Weak-entity snippet from elements/pl-er-diagram-builder/README.md. Employee is only named as a participant there; no Employee attributes are defined in the source.",
+  "_source": "Original example for this repository. Matches questions/element/erDiagramStarter/server.py.",
   "entities": [
     {
-      "name": "Pay",
-      "key_attributes": ["pay_no"],
-      "attributes": ["hours"],
-      "weak": true
+      "name": "Employee",
+      "key_attributes": [
+        "emp_id"
+      ],
+      "attributes": [
+        "name"
+      ]
     },
     {
-      "name": "Employee",
-      "key_attributes": [],
-      "attributes": []
+      "name": "Pay",
+      "key_attributes": [
+        "pay_no"
+      ],
+      "attributes": [
+        "hours"
+      ],
+      "weak": true
     }
   ],
   "relationships": [
@@ -21,12 +29,12 @@
         {
           "entity": "Employee",
           "cardinality": "one",
-          "participation": "total"
+          "participation": "partial"
         },
         {
           "entity": "Pay",
           "cardinality": "many",
-          "participation": "partial"
+          "participation": "total"
         }
       ],
       "attributes": []

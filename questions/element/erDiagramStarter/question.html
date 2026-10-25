@@ -1,9 +1,11 @@
 <pl-question-panel>
-  <p>The canvas starts with entities <strong>Employee</strong> and <strong>Pay</strong>.
-  A pay record is identified by its <code>pay_no</code> together with the employee it belongs to.
-  Mark <strong>Pay</strong> as a weak entity and add the identifying relationship
-  <strong>paid_by</strong> between Employee and Pay. Employee: cardinality one, total participation.
-  Pay: cardinality many, partial participation. <code>paid_by</code> has no attributes.</p>
+  <p>The canvas starts with entities <strong>Employee</strong> (key <code>emp_id</code>) and
+  <strong>Pay</strong> (<code>pay_no</code>, <code>hours</code>). A pay record cannot exist without
+  the employee it belongs to, and <code>pay_no</code> only identifies a pay record within one employee.</p>
+  <p>Mark <strong>Pay</strong> as a weak entity and add the identifying relationship
+  <strong>paid_by</strong> between Employee and Pay. Each pay record belongs to exactly one employee;
+  an employee can have many pay records, and a newly hired employee may have none yet.
+  <code>paid_by</code> has no attributes.</p>
 </pl-question-panel>
 
 <pl-er-diagram-builder answers-name="er" height="420" starter-params-name="er_starter" grade-weak="true"></pl-er-diagram-builder>

@@ -52,7 +52,7 @@ def load_schema(path: Path) -> dict:
 def layout(doc: dict) -> dict:
     entities = doc["entities"]
     n = max(len(entities), 1)
-    gap = 5.1
+    gap = 7.0
     start_x = -(n - 1) * gap / 2
     pos = {}
     sizes = {}
@@ -82,7 +82,7 @@ def layout(doc: dict) -> dict:
                     break
         for ox, oy in used:
             if math.hypot(cx - ox, cy - oy) < 1.8:
-                cy -= 2.0
+                cy -= 3.4
         rel_pos[r["name"]] = (cx, cy)
         used.append((cx, cy))
     return {"entity": pos, "size": sizes, "rel": rel_pos}
@@ -183,7 +183,7 @@ def _edge(ax, p1, p2, total: bool) -> None:
     if total:
         dx, dy = p2[0] - p1[0], p2[1] - p1[1]
         length = math.hypot(dx, dy) or 1.0
-        nx, ny = -dy / length * 0.07, dx / length * 0.07
+        nx, ny = -dy / length * 0.09, dx / length * 0.09
         ax.plot(
             [p1[0] + nx, p2[0] + nx],
             [p1[1] + ny, p2[1] + ny],
@@ -215,7 +215,7 @@ def render_one(path: Path, title: str) -> None:
     for r in doc["relationships"]:
         rx, ry = loc["rel"][r["name"]]
         attrs = r.get("attributes") or []
-        for offset, attr in zip(_attr_slots(len(attrs), 1.55), attrs):
+        for offset, attr in zip(_attr_slots(len(attrs), 1.95), attrs):
             ax.plot([rx, rx + offset], [ry + 0.72, ry + 1.45], color=LINE, lw=0.85, zorder=1)
             _draw_attr_oval(ax, attr, (rx + offset, ry + 1.55), key=False)
 
@@ -254,7 +254,11 @@ def render_one(path: Path, title: str) -> None:
         keys = e.get("key_attributes") or []
         attrs = e.get("attributes") or []
         rel_below = any(
-            abs(loc["rel"][r["name"]][0] - ex) < 2.2 and loc["rel"][r["name"]][1] < ey - 0.6
+            loc["rel"][r["name"]][1] < ey - 0.6
+            and (
+                abs(loc["rel"][r["name"]][0] - ex) < 2.2
+                or any(p["entity"] == name for p in r["participants"])
+            )
             for r in doc["relationships"]
         )
         for offset, key in zip(_attr_slots(len(keys), 1.6), keys):
@@ -262,9 +266,11 @@ def render_one(path: Path, title: str) -> None:
             _draw_attr_oval(ax, key, (ex + offset, ey + eh / 2 + 1.3), key=True)
         if rel_below:
             # Park descriptive attributes in the top band, to the right of keys.
-            start = (len(keys) + 1) / 2 * 1.6
+            # Fan away from the diagram centre so they clear relationship attributes.
+            side = -1.0 if ex < 0 else 1.0
+            start = (len(keys) + 1) / 2 * 2.0
             for i, attr in enumerate(attrs):
-                ox = start + i * 1.6
+                ox = side * (start + i * 2.0)
                 ax.plot([ex, ex + ox], [ey + eh / 2, ey + eh / 2 + 1.2], color=LINE, lw=0.85, zorder=1)
                 _draw_attr_oval(ax, attr, (ex + ox, ey + eh / 2 + 1.3), key=False)
         else:
@@ -307,7 +313,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = [
         ("student-course.json", "Student / Course enrollment"),
-        ("books-authors.json", "Books, authors, and categories"),
+        ("department-professor.json", "Departments and professors (works_in, chairs)"),
         ("employee-pay.json", "Weak entity: Pay identified by Employee"),
     ]
     for name, title in jobs:

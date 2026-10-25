@@ -15,11 +15,7 @@ vendored here.
 
 Third-party material
 --------------------
-Books / Authors / Categories schema (examples/books-authors.json and the
-derived figures in docs/figures/books-authors.*): translated from the UML
-answer of the PrairieLearn question `erd_e3_books` in the UIUC ERD example
-course. Only the entity, attribute, and cardinality facts are reused.
-
-No third-party source code is vendored in this repository. Runtime
-dependencies supplied by the PrairieLearn container (chevron, lxml) and
-the figure dependency (matplotlib) keep their own licenses.
+None. All example schemas (examples/*.json) and figures are original to this
+repository. No third-party source code is vendored here. Runtime dependencies
+supplied by the PrairieLearn container (chevron, lxml) and the figure
+dependency (matplotlib) keep their own licenses.

@@ -1,0 +1,13 @@
+erDiagram
+    DEPARTMENT {
+        string dept_code PK
+        string dept_name
+        string building
+    }
+    PROFESSOR {
+        string prof_id PK
+        string name
+        string office
+    }
+    DEPARTMENT ||--o{ PROFESSOR : works_in
+    DEPARTMENT |o--|| PROFESSOR : chairs
