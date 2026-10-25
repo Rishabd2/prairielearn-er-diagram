@@ -18,7 +18,11 @@ from matplotlib.patches import Ellipse, FancyBboxPatch, Polygon, Rectangle
 
 plt.rcParams.update(
     {
+        # Fixed font (bundled with matplotlib) and fixed SVG ids keep output reproducible.
         "font.family": "DejaVu Sans",
+        "svg.hashsalt": "pl-er-diagram-builder",
+        "svg.fonttype": "path",
+        "path.simplify": False,
         "font.size": 10,
         "text.antialiased": True,
     }
@@ -39,6 +43,7 @@ ATTR_EDGE = "#3D5A45"
 KEY_FILL = "#F4E9B0"
 LINE = "#2A2622"
 MUTED = "#5A534C"
+DPI = 200
 
 
 def load_schema(path: Path) -> dict:
@@ -135,7 +140,8 @@ def _draw_diamond(ax, name: str, xy, weak: bool) -> None:
     ax.text(x, y, name, ha="center", va="center", fontsize=10, color=INK, zorder=5)
 
 
-def _draw_attr_oval(ax, label: str, xy, key: bool = False) -> None:
+def _draw_attr_oval(ax, label: str, xy, key: bool = False, partial: bool = False) -> None:
+    """Attribute oval. Keys are underlined; a weak entity's partial key is dashed."""
     x, y = xy
     w = max(1.35, 0.155 * len(label) + 0.7)
     h = 0.48
@@ -153,7 +159,14 @@ def _draw_attr_oval(ax, label: str, xy, key: bool = False) -> None:
     ax.text(x, y + (0.03 if key else 0.0), label, ha="center", va="center", fontsize=9, color=INK, zorder=5)
     if key:
         tw = max(0.38, 0.062 * len(label))
-        ax.plot([x - tw, x + tw], [y - 0.10, y - 0.10], color=INK, lw=0.8, zorder=5)
+        ax.plot(
+            [x - tw, x + tw],
+            [y - 0.10, y - 0.10],
+            color=INK,
+            lw=0.8,
+            zorder=5,
+            linestyle=(0, (3, 2)) if partial else "-",
+        )
 
 
 def _box_exit(xy, size, toward) -> tuple[float, float]:
@@ -263,7 +276,9 @@ def render_one(path: Path, title: str) -> None:
         )
         for offset, key in zip(_attr_slots(len(keys), 1.6), keys):
             ax.plot([ex, ex + offset], [ey + eh / 2, ey + eh / 2 + 1.2], color=LINE, lw=0.85, zorder=1)
-            _draw_attr_oval(ax, key, (ex + offset, ey + eh / 2 + 1.3), key=True)
+            _draw_attr_oval(
+                ax, key, (ex + offset, ey + eh / 2 + 1.3), key=True, partial=bool(e.get("weak"))
+            )
         if rel_below:
             # Park descriptive attributes in the top band, to the right of keys.
             # Fan away from the diagram centre so they clear relationship attributes.
@@ -282,7 +297,7 @@ def render_one(path: Path, title: str) -> None:
     ax.text(
         0.0,
         -0.07,
-        "Chen notation. Double line = total participation. Underlined oval = key. Double box or diamond = weak / identifying.",
+        "Chen notation. Double line = total participation. Underlined oval = key (dashed: partial key of a weak entity). Double box or diamond = weak / identifying.",
         transform=ax.transAxes,
         fontsize=8,
         color=MUTED,
@@ -302,8 +317,11 @@ def render_one(path: Path, title: str) -> None:
     stem = path.stem
     png = OUT / f"{stem}.png"
     svg = OUT / f"{stem}.svg"
-    fig.savefig(png, dpi=200, bbox_inches="tight", facecolor=BG)
-    fig.savefig(svg, bbox_inches="tight", facecolor=BG)
+    # No software/date metadata, so re-running reproduces the files byte-for-byte.
+    fig.savefig(png, dpi=DPI, bbox_inches="tight", facecolor=BG, metadata={"Software": None})
+    fig.savefig(
+        svg, dpi=DPI, bbox_inches="tight", facecolor=BG, metadata={"Date": None, "Creator": None}
+    )
     plt.close(fig)
     print(f"wrote {png.relative_to(ROOT)}")
     print(f"wrote {svg.relative_to(ROOT)}")

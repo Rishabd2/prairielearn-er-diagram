@@ -34,7 +34,7 @@ const ERDiagramBuilder = (function () {
     const lines = [];
     lines.push({ text: entity.name, bold: true });
     for (const a of entity.key_attributes || []) {
-      const s = String(a) + " (key)";
+      const s = String(a) + (entity.weak ? " (partial key)" : " (key)");
       maxW = Math.max(maxW, ctx.measureText(s).width);
       lines.push({ text: s, key: true });
     }
@@ -1654,16 +1654,19 @@ const ERDiagramBuilder = (function () {
       y += LINE_H;
       c.font = "13px ui-monospace, monospace";
       for (const a of ent.key_attributes || []) {
-        const s = String(a) + " (key)";
+        // Chen notation: a weak entity's partial key gets a dashed underline.
+        const s = String(a) + (isWeak ? " (partial key)" : " (key)");
         c.fillStyle = "#0a58ca";
         c.fillText(s, r.x + PAD, y);
         c.beginPath();
         c.strokeStyle = "#0a58ca";
         c.lineWidth = 1;
+        c.setLineDash(isWeak ? [4, 3] : []);
         const tw = c.measureText(s).width;
         c.moveTo(r.x + PAD, y + 2);
         c.lineTo(r.x + PAD + tw, y + 2);
         c.stroke();
+        c.setLineDash([]);
         y += LINE_H;
       }
       c.fillStyle = "#333";

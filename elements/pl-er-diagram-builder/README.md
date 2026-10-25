@@ -85,7 +85,7 @@ The `layout` field is preserved for the editor but stripped before grading.
 
 ### Weak entities and identifying relationships
 
-- **Weak entity**: set `"weak": true` on an entity. The canvas draws a double rectangle.
+- **Weak entity**: set `"weak": true` on an entity. The canvas draws a double rectangle, and its `key_attributes` are shown as the partial key with a dashed underline (Chen notation).
 - **Identifying (weak) relationship**: set `"weak": true` on a relationship. The canvas draws a double diamond.
 
 Example snippet (a weak entity always has total participation in its identifying relationship):

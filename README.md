@@ -140,7 +140,7 @@ python3 scripts/render_element.py screenshot  # docs/figures/element-editor.png
 python3 scripts/render_er.py                  # docs/figures/{student-course,department-professor,employee-pay}.{png,svg}
 ```
 
-The screenshot and browser checks load Bootstrap 5 CSS from jsDelivr, so they need network access.
+The screenshot and browser checks load Bootstrap 5 CSS from jsDelivr, so they need network access. `render_er.py` writes no date or software metadata and uses fixed fonts, DPI, and SVG ids, so with the pinned matplotlib (3.9.2) a re-run reproduces the committed figures byte-for-byte (`shasum docs/figures/*` before and after).
 
 ## Repo layout
 
