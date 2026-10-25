@@ -135,7 +135,8 @@ Reference drawings of the shipped schemas, rendered from `examples/*.json` by `s
 ```bash
 python3 -m pip install -r requirements-dev.txt
 python3 -m pytest -q                          # all tests
-python3 scripts/render_element.py smoke       # browser checks only (needs Chrome or Chromium; CHROME=/path overrides)
+python3 scripts/render_element.py smoke       # browser checks only (needs Chrome or Chromium; CHROME=/path overrides;
+                                              # set CHROME_TMPDIR if TMPDIR is on an exFAT volume)
 python3 scripts/render_element.py screenshot  # docs/figures/element-editor.png
 python3 scripts/render_er.py                  # docs/figures/{student-course,department-professor,employee-pay}.{png,svg}
 ```

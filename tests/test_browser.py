@@ -28,7 +28,7 @@ class BrowserSmokeTest(unittest.TestCase):
             [sys.executable, str(ROOT / "scripts" / "render_element.py"), "smoke"],
             capture_output=True,
             text=True,
-            timeout=180,
+            timeout=600,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 

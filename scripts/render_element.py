@@ -11,7 +11,8 @@ Bootstrap 5 CSS is loaded from jsDelivr to approximate PrairieLearn's styling.
     python3 scripts/render_element.py smoke        # runs browser checks, exits non-zero on failure
 
 Requires Google Chrome or Chromium (set CHROME=/path/to/chrome to override),
-plus chevron and lxml.
+plus chevron and lxml. Chrome needs its temporary profile on a POSIX file
+system; if TMPDIR is on exFAT, set CHROME_TMPDIR to a directory elsewhere.
 """
 
 from __future__ import annotations
@@ -155,6 +156,11 @@ def page(body: str, extra_js: str) -> str:
 </body></html>"""
 
 
+def chrome_tmp() -> tempfile.TemporaryDirectory:
+    """Chrome hangs when its page or profile is on exFAT/FAT; CHROME_TMPDIR can point elsewhere."""
+    return tempfile.TemporaryDirectory(dir=os.environ.get("CHROME_TMPDIR") or None)
+
+
 def run_chrome(html: str, args: list[str], tmp: Path) -> subprocess.CompletedProcess:
     src = tmp / "page.html"
     src.write_text(html, encoding="utf-8")
@@ -170,12 +176,12 @@ def run_chrome(html: str, args: list[str], tmp: Path) -> subprocess.CompletedPro
         *args,
         src.as_uri(),
     ]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=240)
 
 
 def screenshot() -> int:
     out = ROOT / "docs" / "figures" / "element-editor.png"
-    with tempfile.TemporaryDirectory() as t:
+    with chrome_tmp() as t:
         proc = run_chrome(page(hero_html(), SELECT_JS), [f"--screenshot={out}"], Path(t))
     if not out.exists():
         print(proc.stderr, file=sys.stderr)
@@ -186,7 +192,7 @@ def screenshot() -> int:
 
 def smoke() -> int:
     body = hero_html() + "\n<hr>\n" + starter_html()
-    with tempfile.TemporaryDirectory() as t:
+    with chrome_tmp() as t:
         proc = run_chrome(page(body, SMOKE_JS), ["--dump-dom"], Path(t))
     m = re.search(r'<pre id="smoke-results">(.*?)</pre>', proc.stdout, re.S)
     if not m:
