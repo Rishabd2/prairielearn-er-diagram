@@ -201,7 +201,7 @@ class ControllerTests(unittest.TestCase):
 class StarterTests(unittest.TestCase):
     TAG = (
         '<pl-er-diagram-builder answers-name="er" height="420" '
-        'starter-params-name="er_starter"></pl-er-diagram-builder>'
+        'starter-params-name="er_starter" grade-weak="true"></pl-er-diagram-builder>'
     )
 
     @classmethod
@@ -243,6 +243,17 @@ class StarterTests(unittest.TestCase):
         self.ctl.parse(self.TAG, data)
         self.ctl.grade(self.TAG, data)
         self.assertEqual(data["partial_scores"]["er"]["score"], 1.0)
+
+    def test_missing_weak_flags_lose_credit_when_graded(self):
+        data = self._data()
+        answer = json.loads(json.dumps(data["correct_answers"]["er"]))
+        answer["entities"][1]["weak"] = False
+        answer["relationships"][0]["weak"] = False
+        data["raw_submitted_answers"]["er-raw"] = json.dumps(answer)
+        self.ctl.parse(self.TAG, data)
+        self.ctl.grade(self.TAG, data)
+        self.assertAlmostEqual(data["partial_scores"]["er"]["score"], (3.5 + 0.125) / 4.0)
+        self.assertIn("Weak entity marks", data["partial_scores"]["er"]["feedback"])
 
     def test_missing_starter_param_raises(self):
         with self.assertRaises(ValueError):

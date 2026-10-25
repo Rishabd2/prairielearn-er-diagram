@@ -131,6 +131,7 @@ Create a relationship with **at least two** participants (binary by default). To
 | `height` | integer | `600` | Canvas height in pixels. |
 | `disable-grading` | boolean | `false` | If `true`, the element stores submissions but does not grade them. |
 | `hide-instructions` | boolean | `false` | If `true`, the collapsible help block at the top of the element is hidden. |
+| `grade-weak` | boolean | `false` | If `true`, weak-entity and identifying-relationship flags are scored (0.25 each, rubric total 4.0 instead of 3.5). Off by default, so existing questions keep their scores. |
 | `starter-params-name` | string | none | Key in `data["params"]` holding a starter diagram (dict or JSON string, same shape as a submission, `layout` optional). Shown until the student saves their first answer. Validated in `prepare`. |
 
 ## How to use

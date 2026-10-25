@@ -55,12 +55,14 @@ def prepare(element_html: str, data: pl.QuestionData) -> None:
             "disable-grading",
             "hide-instructions",
             "starter-params-name",
+            "grade-weak",
         ],
     )
     name = pl.get_string_attrib(element, "answers-name")
     data["params"][name] = {
         "disable_grading": pl.get_boolean_attrib(element, "disable-grading", False),
         "hide_instructions": pl.get_boolean_attrib(element, "hide-instructions", False),
+        "grade_weak": pl.get_boolean_attrib(element, "grade-weak", False),
     }
 
     starter_key = pl.get_string_attrib(element, "starter-params-name", None)
@@ -214,7 +216,9 @@ def grade(element_html: str, data: pl.QuestionData) -> None:
 
     expected = normalize_semantic(strip_layout(correct_doc))
 
-    marks = compute_rubric_marks(sub, expected)
+    marks = compute_rubric_marks(
+        sub, expected, grade_weak=bool(data["params"][name].get("grade_weak"))
+    )
     mismatch_feedback = None if sub == expected else schema_mismatch_feedback(sub, expected)
     data["partial_scores"][name] = {
         "score": marks["score_fraction"],

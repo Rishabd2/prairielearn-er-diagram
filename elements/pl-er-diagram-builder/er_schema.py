@@ -13,11 +13,13 @@ import html
 CARDINALITY_ALLOWED = frozenset({"one", "many"})
 PARTICIPATION_ALLOWED = frozenset({"total", "partial"})
 
-# Rubric weights match the original CS 498 element (entity 1.5 + relationship 2.0).
+# Default rubric: entity 1.5 + relationship 2.0 = 3.5, reported out of 10.
 ENTITY_NAME_WEIGHT = 0.6
 ENTITY_ATTR_WEIGHT = 0.3
 ENTITY_PK_WEIGHT = 0.6
 ENTITY_WEAK_WEIGHT = 0.0
+# Used instead of 0.0 for entities and relationships when grade_weak=True.
+WEAK_FLAG_WEIGHT = 0.25
 ENTITY_EXTRA_PENALTY = 0.25
 ENTITY_TOTAL_MAX = 1.5
 
@@ -281,8 +283,22 @@ def safe_ratio(numer: int, denom: int) -> float:
     return numer / denom
 
 
-def compute_rubric_marks(sub: dict, exp: dict) -> dict:
-    """Partial credit for a normalized submission against a normalized answer."""
+def _weak_ratio(sub_items: dict, exp_items: dict) -> float:
+    """Share of expected items present in the submission with the same weak flag."""
+    hits = sum(
+        1 for n, e in exp_items.items() if n in sub_items and sub_items[n]["weak"] == e["weak"]
+    )
+    return safe_ratio(hits, len(exp_items))
+
+
+def compute_rubric_marks(sub: dict, exp: dict, grade_weak: bool = False) -> dict:
+    """Partial credit for a normalized submission against a normalized answer.
+
+    With ``grade_weak`` the weak-entity and identifying-relationship flags each
+    add WEAK_FLAG_WEIGHT to the rubric (total 4.0 instead of 3.5).
+    """
+    ent_weak_max = WEAK_FLAG_WEIGHT if grade_weak else ENTITY_WEAK_WEIGHT
+    rel_weak_max = WEAK_FLAG_WEIGHT if grade_weak else 0.0
     sub_ent = {e["name"]: e for e in sub["entities"]}
     exp_ent = {e["name"]: e for e in exp["entities"]}
     sub_ent_names = set(sub_ent)
@@ -310,7 +326,7 @@ def compute_rubric_marks(sub: dict, exp: dict) -> dict:
 
     ent_attr_marks = ENTITY_ATTR_WEIGHT * safe_ratio(attr_ratio_sum, len(exp_ent_names))
     ent_pk_marks = ENTITY_PK_WEIGHT * safe_ratio(pk_ratio_sum, len(exp_ent_names))
-    ent_weak_marks = 0.0
+    ent_weak_marks = ent_weak_max * _weak_ratio(sub_ent, exp_ent) if ent_weak_max else 0.0
     ent_extra_penalty = -ENTITY_EXTRA_PENALTY * extra_ent_count
 
     ent_total_marks = (
@@ -353,10 +369,14 @@ def compute_rubric_marks(sub: dict, exp: dict) -> dict:
 
     rel_card_marks = REL_CARD_WEIGHT * safe_ratio(rel_card_ratio_sum, len(exp_rel_names))
     rel_extra_penalty = -REL_EXTRA_PENALTY * extra_rel_count
-    rel_total_marks = rel_name_marks + rel_card_marks + rel_extra_penalty
+    rel_weak_marks = rel_weak_max * _weak_ratio(sub_rel, exp_rel) if rel_weak_max else 0.0
+    rel_total_marks = rel_name_marks + rel_card_marks + rel_weak_marks + rel_extra_penalty
 
+    entity_total_max = ENTITY_TOTAL_MAX + ent_weak_max
+    rel_total_max = REL_TOTAL_MAX + rel_weak_max
+    total_max = entity_total_max + rel_total_max
     total_marks = max(0.0, ent_total_marks + rel_total_marks)
-    score_fraction = max(0.0, min(1.0, safe_ratio(total_marks, TOTAL_MAX)))
+    score_fraction = max(0.0, min(1.0, safe_ratio(total_marks, total_max)))
     scaled_marks = score_fraction * SCALED_MAX
 
     return {
@@ -368,6 +388,7 @@ def compute_rubric_marks(sub: dict, exp: dict) -> dict:
         "total_entity_marks": ent_total_marks,
         "relationship_marks": rel_name_marks,
         "relationship_card_marks": rel_card_marks,
+        "relationship_weak_marks": rel_weak_marks,
         "extra_relationships_penalty": rel_extra_penalty,
         "total_relationship_marks": rel_total_marks,
         "total_marks": total_marks,
@@ -377,12 +398,13 @@ def compute_rubric_marks(sub: dict, exp: dict) -> dict:
             "entity_name": ENTITY_NAME_WEIGHT,
             "entity_attr": ENTITY_ATTR_WEIGHT,
             "entity_pk": ENTITY_PK_WEIGHT,
-            "entity_weak": ENTITY_WEAK_WEIGHT,
-            "entity_total": ENTITY_TOTAL_MAX,
+            "entity_weak": ent_weak_max,
+            "entity_total": entity_total_max,
             "relationship_name": REL_NAME_WEIGHT,
             "relationship_card": REL_CARD_WEIGHT,
-            "relationship_total": REL_TOTAL_MAX,
-            "total": TOTAL_MAX,
+            "relationship_weak": rel_weak_max,
+            "relationship_total": rel_total_max,
+            "total": total_max,
             "scaled_total": SCALED_MAX,
         },
     }
@@ -398,7 +420,6 @@ def format_marks_feedback(marks: dict, include_mismatch_html: str | None = None)
         f"Entity name marks: {fmt(m['entity_name_marks'])}/{fmt(mx['entity_name'])}",
         f"Entity attribute marks: {fmt(m['entity_attr_marks'])}/{fmt(mx['entity_attr'])}",
         f"Entity primary key marks: {fmt(m['entity_pk_marks'])}/{fmt(mx['entity_pk'])}",
-        f"Weak entity key marks: {fmt(m['entity_weak_marks'])}/{fmt(mx['entity_weak'])}",
         f"Extra entities: {fmt(m['extra_entities_penalty'])}",
         f"Total entity marks: {fmt(m['total_entity_marks'])}/{fmt(mx['entity_total'])}",
         f"Relationship marks: {fmt(m['relationship_marks'])}/{fmt(mx['relationship_name'])}",
@@ -414,6 +435,18 @@ def format_marks_feedback(marks: dict, include_mismatch_html: str | None = None)
         f"Total marks: {fmt(m['total_marks'])}/{fmt(mx['total'])}",
         f"Total scaled marks: {fmt(m['total_scaled_marks'])}/{fmt(mx['scaled_total'])}",
     ]
+
+    if mx.get("entity_weak"):
+        lines.insert(
+            3, f"Weak entity marks: {fmt(m['entity_weak_marks'])}/{fmt(mx['entity_weak'])}"
+        )
+    if mx.get("relationship_weak"):
+        at = next(i for i, ln in enumerate(lines) if ln.startswith("Extra relationships"))
+        lines.insert(
+            at,
+            "Identifying relationship marks: "
+            f"{fmt(m['relationship_weak_marks'])}/{fmt(mx['relationship_weak'])}",
+        )
 
     feedback = "<p><strong>Rubric breakdown</strong></p><pre>" + "\n".join(lines) + "</pre>"
     if include_mismatch_html:

@@ -175,5 +175,32 @@ class GradeTests(unittest.TestCase):
         self.assertIn("Total scaled marks: 10/10", html)
 
 
+
+class GradeWeakTests(unittest.TestCase):
+    def setUp(self):
+        self.exp = normalize_semantic(strip_layout(load_example("employee-pay.json")))
+
+    def _unflagged(self):
+        sub = json.loads(json.dumps(self.exp))
+        for item in sub["entities"] + sub["relationships"]:
+            item["weak"] = False
+        return sub
+
+    def test_default_rubric_ignores_weak_flags(self):
+        marks = compute_rubric_marks(self._unflagged(), self.exp)
+        self.assertEqual(marks["score_fraction"], 1.0)
+        self.assertEqual(marks["maxima"]["total"], 3.5)
+        self.assertNotIn("Weak entity marks", format_marks_feedback(marks))
+
+    def test_grade_weak_scores_flags(self):
+        full = compute_rubric_marks(self.exp, self.exp, grade_weak=True)
+        self.assertEqual(full["score_fraction"], 1.0)
+        self.assertEqual(full["maxima"]["total"], 4.0)
+        # Employee is not weak in the answer, so 1 of 2 entity flags still match.
+        partial = compute_rubric_marks(self._unflagged(), self.exp, grade_weak=True)
+        self.assertAlmostEqual(partial["total_marks"], 3.5 + 0.125)
+        self.assertIn("Identifying relationship marks", format_marks_feedback(partial))
+
+
 if __name__ == "__main__":
     unittest.main()
